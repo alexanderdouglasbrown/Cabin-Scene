@@ -7,3 +7,5 @@ bin/
 wasm-pack.log
 node_modules
 package-lock.json
+/dist
+/pkg

@@ -1,3 +1,0 @@
-wasm-pack build --target web
-
-https://rustwasm.github.io/wasm-bindgen/examples/webgl.html

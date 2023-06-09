@@ -1,5 +1,7 @@
-import init, { add } from "./pkg/cabin_scene.js"
+const rust = import('./pkg');
 
-init().then(() => {
-    document.body.textContent = `1 + 2 = ${add(1, 2)}`
-});
+rust
+    .then(m => {
+        document.body.textContent = `1 + 2 = ${m.add(1, 2)}`
+    })
+    .catch(console.error);
