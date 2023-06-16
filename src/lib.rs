@@ -1,6 +1,11 @@
 use wasm_bindgen::prelude::*;
+// use web_sys::{WebGl2RenderingContext, WebGlProgram, WebGlShader};
 
-#[wasm_bindgen]
-pub fn add (num1: i32, num2: i32) -> i32 {
-    return num1 + num2;
+#[wasm_bindgen(start)]
+fn start() -> Result<(), JsValue> {
+    use web_sys::console;
+
+    console::log_1(&"Hello, wasm".into());
+
+    Ok(())
 }
