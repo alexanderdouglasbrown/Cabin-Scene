@@ -1,0 +1,1 @@
+"use strict";(self.webpackChunkcabin_scene=self.webpackChunkcabin_scene||[]).push([[235],{235:(c,e,a)=>{a.a(c,(async(c,s)=>{try{a.r(e),a.d(e,{__wbg_set_wasm:()=>t.o});var n=a(530),t=a(838),b=c([n]);n=(b.then?(await b)():b)[0],(0,t.o)(n),s()}catch(c){s(c)}}))},838:(c,e,a)=>{let s;function n(c){s=c}a.d(e,{o:()=>n})},530:(c,e,a)=>{c.exports=a.v(e,c.id,"08cb2bcf37814d3ecf15")}}]);
