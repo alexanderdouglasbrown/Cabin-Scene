@@ -1,3 +1,4 @@
+// obj must be triangulated
 // directory: no / at end
 // file: no extension
 const objLoader = async (directory, file) => {

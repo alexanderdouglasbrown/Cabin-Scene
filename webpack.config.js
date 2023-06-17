@@ -20,9 +20,11 @@ module.exports = {
         new CopyWebpackPlugin({
             patterns: [
                 { from: 'public', to: '', globOptions: { ignore: "**/index.html" } },
+                { from: 'models', to: 'models' }
             ],
         })
     ],
+    performance: { hints: false },
     mode: 'development',
     experiments: {
         asyncWebAssembly: true
