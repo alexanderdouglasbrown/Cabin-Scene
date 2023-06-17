@@ -16,27 +16,17 @@
   \******************/
 /***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
 
-eval("__webpack_require__.r(__webpack_exports__);\n/* harmony import */ var _pkg_cabin_scene_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./pkg/cabin_scene.js */ \"./pkg/cabin_scene.js\");\n\n\n(0,_pkg_cabin_scene_js__WEBPACK_IMPORTED_MODULE_0__[\"default\"])().then(() => {\n    document.body.textContent = `1 + 2 = ${(0,_pkg_cabin_scene_js__WEBPACK_IMPORTED_MODULE_0__.add)(1, 2)}`\n});\n\n//# sourceURL=webpack://cabin-scene/./index.js?");
+eval("__webpack_require__.r(__webpack_exports__);\n/* harmony import */ var _src_shaderFunctions__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./src/shaderFunctions */ \"./src/shaderFunctions.js\");\n__webpack_require__.e(/*! import() */ \"pkg_index_js\").then(__webpack_require__.bind(__webpack_require__, /*! ./pkg */ \"./pkg/index.js\")).catch(console.error)\r\n\r\n// import objLoader from './src/objLoader'\r\n;\r\n\r\nconst vertexShaderGLSL = `#version 300 es\r\n\r\nin vec4 a_position;\r\n\r\nvoid main() {\r\n    gl_Position = vec4(0.0, 0.0, 0.0, 1.0);\r\n    gl_PointSize = 15.0;\r\n    // gl_Position = a_position;\r\n}\r\n`\r\n\r\nconst fragmentShaderGLSL = `#version 300 es\r\nprecision highp float;\r\n\r\nout vec4 outColor;\r\n\r\nvoid main() {\r\n    outColor = vec4(1, 0, 1, 1);\r\n}\r\n`\r\n\r\nconst main = async () => {\r\n    const setOverlay = msg => {\r\n        document.querySelector(\"#overlay\").textContent = msg\r\n    }\r\n\r\n    const canvas = document.querySelector(\"#canvas\")\r\n    const gl = canvas.getContext(\"webgl2\")\r\n\r\n    // Resize stuff\r\n    let aspect = canvas.clientWidth / canvas.clientHeight\r\n    let targetCanvasWidth = gl.canvas.width\r\n    let targetCanvasHeight = gl.canvas.height\r\n    const onResize = ro => {\r\n        for (const entry of ro) {\r\n            if (entry.devicePixelContentBoxSize) {\r\n                targetCanvasWidth = entry.devicePixelContentBoxSize[0].inlineSize\r\n                targetCanvasHeight = entry.devicePixelContentBoxSize[0].blockSize\r\n            } else if (entry.contentBoxSize) {\r\n                targetCanvasWidth = entry.contentBoxSize[0].inlineSize * window.devicePixelRatio\r\n                targetCanvasHeight = entry.contentBoxSize[0].blockSize * window.devicePixelRatio\r\n            } else {\r\n                targetCanvasWidth = entry.contentRect.width * window.devicePixelRatio\r\n                targetCanvasHeight = entry.contentRect.height * window.devicePixelRatio\r\n            }\r\n        }\r\n    }\r\n    const resizeObserver = new ResizeObserver(onResize) // Listen for canvas size changes\r\n    try {\r\n        resizeObserver.observe(canvas, { box: \"device-pixel-content-box\" })\r\n    } catch {\r\n        resizeObserver.observe(canvas, { box: \"content-box\" })\r\n    }\r\n\r\n\r\n    if (!gl) {\r\n        console.error(\"WebGL failed to load\")\r\n        return\r\n    }\r\n\r\n    const vertexShader = (0,_src_shaderFunctions__WEBPACK_IMPORTED_MODULE_0__.createShader)(gl, gl.VERTEX_SHADER, vertexShaderGLSL)\r\n    const fragmentShader = (0,_src_shaderFunctions__WEBPACK_IMPORTED_MODULE_0__.createShader)(gl, gl.FRAGMENT_SHADER, fragmentShaderGLSL)\r\n    const program = (0,_src_shaderFunctions__WEBPACK_IMPORTED_MODULE_0__.createProgram)(gl, vertexShader, fragmentShader)\r\n\r\n    gl.useProgram(program)\r\n\r\n    gl.clearColor(0.6, 0.74, 0.95, 1.0)\r\n\r\n    const draw = () => {\r\n        // Handle resize\r\n        if (canvas.clientWidth !== targetCanvasWidth || canvas.clientHeight !== targetCanvasHeight) {\r\n            gl.canvas.width = targetCanvasWidth\r\n            gl.canvas.height = targetCanvasHeight\r\n            aspect = canvas.clientWidth / canvas.clientHeight\r\n            gl.viewport(0, 0, gl.canvas.width, gl.canvas.height)\r\n        }\r\n\r\n        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)\r\n\r\n        gl.drawArrays(gl.POINTS, 0, 1)\r\n\r\n        requestAnimationFrame(draw)\r\n    }\r\n\r\n    draw()\r\n}\r\n\r\nmain()\n\n//# sourceURL=webpack://cabin-scene/./index.js?");
 
 /***/ }),
 
-/***/ "./pkg/cabin_scene.js":
-/*!****************************!*\
-  !*** ./pkg/cabin_scene.js ***!
-  \****************************/
+/***/ "./src/shaderFunctions.js":
+/*!********************************!*\
+  !*** ./src/shaderFunctions.js ***!
+  \********************************/
 /***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
 
-eval("__webpack_require__.r(__webpack_exports__);\n/* harmony export */ __webpack_require__.d(__webpack_exports__, {\n/* harmony export */   add: () => (/* binding */ add),\n/* harmony export */   \"default\": () => (__WEBPACK_DEFAULT_EXPORT__),\n/* harmony export */   initSync: () => (/* binding */ initSync)\n/* harmony export */ });\nlet wasm;\n\n/**\n* @param {number} num1\n* @param {number} num2\n* @returns {number}\n*/\nfunction add(num1, num2) {\n    const ret = wasm.add(num1, num2);\n    return ret;\n}\n\nasync function __wbg_load(module, imports) {\n    if (typeof Response === 'function' && module instanceof Response) {\n        if (typeof WebAssembly.instantiateStreaming === 'function') {\n            try {\n                return await WebAssembly.instantiateStreaming(module, imports);\n\n            } catch (e) {\n                if (module.headers.get('Content-Type') != 'application/wasm') {\n                    console.warn(\"`WebAssembly.instantiateStreaming` failed because your server does not serve wasm with `application/wasm` MIME type. Falling back to `WebAssembly.instantiate` which is slower. Original error:\\n\", e);\n\n                } else {\n                    throw e;\n                }\n            }\n        }\n\n        const bytes = await module.arrayBuffer();\n        return await WebAssembly.instantiate(bytes, imports);\n\n    } else {\n        const instance = await WebAssembly.instantiate(module, imports);\n\n        if (instance instanceof WebAssembly.Instance) {\n            return { instance, module };\n\n        } else {\n            return instance;\n        }\n    }\n}\n\nfunction __wbg_get_imports() {\n    const imports = {};\n    imports.wbg = {};\n\n    return imports;\n}\n\nfunction __wbg_init_memory(imports, maybe_memory) {\n\n}\n\nfunction __wbg_finalize_init(instance, module) {\n    wasm = instance.exports;\n    __wbg_init.__wbindgen_wasm_module = module;\n\n\n    return wasm;\n}\n\nfunction initSync(module) {\n    if (wasm !== undefined) return wasm;\n\n    const imports = __wbg_get_imports();\n\n    __wbg_init_memory(imports);\n\n    if (!(module instanceof WebAssembly.Module)) {\n        module = new WebAssembly.Module(module);\n    }\n\n    const instance = new WebAssembly.Instance(module, imports);\n\n    return __wbg_finalize_init(instance, module);\n}\n\nasync function __wbg_init(input) {\n    if (wasm !== undefined) return wasm;\n\n    if (typeof input === 'undefined') {\n        input = new URL(/* asset import */ __webpack_require__(/*! cabin_scene_bg.wasm */ \"./pkg/cabin_scene_bg.wasm\"), __webpack_require__.b);\n    }\n    const imports = __wbg_get_imports();\n\n    if (typeof input === 'string' || (typeof Request === 'function' && input instanceof Request) || (typeof URL === 'function' && input instanceof URL)) {\n        input = fetch(input);\n    }\n\n    __wbg_init_memory(imports);\n\n    const { instance, module } = await __wbg_load(await input, imports);\n\n    return __wbg_finalize_init(instance, module);\n}\n\n\n/* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = (__wbg_init);\n\n\n//# sourceURL=webpack://cabin-scene/./pkg/cabin_scene.js?");
-
-/***/ }),
-
-/***/ "./pkg/cabin_scene_bg.wasm":
-/*!*********************************!*\
-  !*** ./pkg/cabin_scene_bg.wasm ***!
-  \*********************************/
-/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
-
-eval("module.exports = __webpack_require__.p + \"b508e98f37ad6810f839.wasm\";\n\n//# sourceURL=webpack://cabin-scene/./pkg/cabin_scene_bg.wasm?");
+eval("__webpack_require__.r(__webpack_exports__);\n/* harmony export */ __webpack_require__.d(__webpack_exports__, {\n/* harmony export */   createProgram: () => (/* binding */ createProgram),\n/* harmony export */   createShader: () => (/* binding */ createShader)\n/* harmony export */ });\nconst createProgram = (gl, vertexShader, fragmentShader) => {\r\n    const program = gl.createProgram()\r\n\r\n    gl.attachShader(program, vertexShader)\r\n    gl.attachShader(program, fragmentShader)\r\n    gl.linkProgram(program)\r\n\r\n    const success = gl.getProgramParameter(program, gl.LINK_STATUS)\r\n\r\n    if (success) {\r\n        return program\r\n    } else {\r\n        console.error(gl.getProgramInfoLog(program))\r\n        gl.deleteProgram(program)\r\n    }\r\n}\r\n\r\nconst createShader = (gl, type, source) => {\r\n    const shader = gl.createShader(type)\r\n\r\n    gl.shaderSource(shader, source)\r\n    gl.compileShader(shader)\r\n\r\n    const success = gl.getShaderParameter(shader, gl.COMPILE_STATUS)\r\n\r\n    if (success) {\r\n        return shader\r\n    } else {\r\n        console.error(gl.getShaderInfoLog(shader))\r\n        gl.deleteShader(shader)\r\n    }\r\n}\r\n\r\n\n\n//# sourceURL=webpack://cabin-scene/./src/shaderFunctions.js?");
 
 /***/ })
 
@@ -54,7 +44,7 @@ eval("module.exports = __webpack_require__.p + \"b508e98f37ad6810f839.wasm\";\n\
 /******/ 		}
 /******/ 		// Create a new module (and put it into the cache)
 /******/ 		var module = __webpack_module_cache__[moduleId] = {
-/******/ 			// no module.id needed
+/******/ 			id: moduleId,
 /******/ 			// no module.loaded needed
 /******/ 			exports: {}
 /******/ 		};
@@ -70,6 +60,75 @@ eval("module.exports = __webpack_require__.p + \"b508e98f37ad6810f839.wasm\";\n\
 /******/ 	__webpack_require__.m = __webpack_modules__;
 /******/ 	
 /************************************************************************/
+/******/ 	/* webpack/runtime/async module */
+/******/ 	(() => {
+/******/ 		var webpackQueues = typeof Symbol === "function" ? Symbol("webpack queues") : "__webpack_queues__";
+/******/ 		var webpackExports = typeof Symbol === "function" ? Symbol("webpack exports") : "__webpack_exports__";
+/******/ 		var webpackError = typeof Symbol === "function" ? Symbol("webpack error") : "__webpack_error__";
+/******/ 		var resolveQueue = (queue) => {
+/******/ 			if(queue && !queue.d) {
+/******/ 				queue.d = 1;
+/******/ 				queue.forEach((fn) => (fn.r--));
+/******/ 				queue.forEach((fn) => (fn.r-- ? fn.r++ : fn()));
+/******/ 			}
+/******/ 		}
+/******/ 		var wrapDeps = (deps) => (deps.map((dep) => {
+/******/ 			if(dep !== null && typeof dep === "object") {
+/******/ 				if(dep[webpackQueues]) return dep;
+/******/ 				if(dep.then) {
+/******/ 					var queue = [];
+/******/ 					queue.d = 0;
+/******/ 					dep.then((r) => {
+/******/ 						obj[webpackExports] = r;
+/******/ 						resolveQueue(queue);
+/******/ 					}, (e) => {
+/******/ 						obj[webpackError] = e;
+/******/ 						resolveQueue(queue);
+/******/ 					});
+/******/ 					var obj = {};
+/******/ 					obj[webpackQueues] = (fn) => (fn(queue));
+/******/ 					return obj;
+/******/ 				}
+/******/ 			}
+/******/ 			var ret = {};
+/******/ 			ret[webpackQueues] = x => {};
+/******/ 			ret[webpackExports] = dep;
+/******/ 			return ret;
+/******/ 		}));
+/******/ 		__webpack_require__.a = (module, body, hasAwait) => {
+/******/ 			var queue;
+/******/ 			hasAwait && ((queue = []).d = 1);
+/******/ 			var depQueues = new Set();
+/******/ 			var exports = module.exports;
+/******/ 			var currentDeps;
+/******/ 			var outerResolve;
+/******/ 			var reject;
+/******/ 			var promise = new Promise((resolve, rej) => {
+/******/ 				reject = rej;
+/******/ 				outerResolve = resolve;
+/******/ 			});
+/******/ 			promise[webpackExports] = exports;
+/******/ 			promise[webpackQueues] = (fn) => (queue && fn(queue), depQueues.forEach(fn), promise["catch"](x => {}));
+/******/ 			module.exports = promise;
+/******/ 			body((deps) => {
+/******/ 				currentDeps = wrapDeps(deps);
+/******/ 				var fn;
+/******/ 				var getResult = () => (currentDeps.map((d) => {
+/******/ 					if(d[webpackError]) throw d[webpackError];
+/******/ 					return d[webpackExports];
+/******/ 				}))
+/******/ 				var promise = new Promise((resolve) => {
+/******/ 					fn = () => (resolve(getResult));
+/******/ 					fn.r = 0;
+/******/ 					var fnQueue = (q) => (q !== queue && !depQueues.has(q) && (depQueues.add(q), q && !q.d && (fn.r++, q.push(fn))));
+/******/ 					currentDeps.map((dep) => (dep[webpackQueues](fnQueue)));
+/******/ 				});
+/******/ 				return fn.r ? promise : getResult();
+/******/ 			}, (err) => ((err ? reject(promise[webpackError] = err) : outerResolve(exports)), resolveQueue(queue)));
+/******/ 			queue && (queue.d = 0);
+/******/ 		};
+/******/ 	})();
+/******/ 	
 /******/ 	/* webpack/runtime/define property getters */
 /******/ 	(() => {
 /******/ 		// define getter functions for harmony exports
@@ -79,6 +138,28 @@ eval("module.exports = __webpack_require__.p + \"b508e98f37ad6810f839.wasm\";\n\
 /******/ 					Object.defineProperty(exports, key, { enumerable: true, get: definition[key] });
 /******/ 				}
 /******/ 			}
+/******/ 		};
+/******/ 	})();
+/******/ 	
+/******/ 	/* webpack/runtime/ensure chunk */
+/******/ 	(() => {
+/******/ 		__webpack_require__.f = {};
+/******/ 		// This file contains only the entry chunk.
+/******/ 		// The chunk loading function for additional chunks
+/******/ 		__webpack_require__.e = (chunkId) => {
+/******/ 			return Promise.all(Object.keys(__webpack_require__.f).reduce((promises, key) => {
+/******/ 				__webpack_require__.f[key](chunkId, promises);
+/******/ 				return promises;
+/******/ 			}, []));
+/******/ 		};
+/******/ 	})();
+/******/ 	
+/******/ 	/* webpack/runtime/get javascript chunk filename */
+/******/ 	(() => {
+/******/ 		// This function allow to reference async chunks
+/******/ 		__webpack_require__.u = (chunkId) => {
+/******/ 			// return url for filenames based on template
+/******/ 			return "" + chunkId + ".index.js";
 /******/ 		};
 /******/ 	})();
 /******/ 	
@@ -99,6 +180,52 @@ eval("module.exports = __webpack_require__.p + \"b508e98f37ad6810f839.wasm\";\n\
 /******/ 		__webpack_require__.o = (obj, prop) => (Object.prototype.hasOwnProperty.call(obj, prop))
 /******/ 	})();
 /******/ 	
+/******/ 	/* webpack/runtime/load script */
+/******/ 	(() => {
+/******/ 		var inProgress = {};
+/******/ 		var dataWebpackPrefix = "cabin-scene:";
+/******/ 		// loadScript function to load a script via script tag
+/******/ 		__webpack_require__.l = (url, done, key, chunkId) => {
+/******/ 			if(inProgress[url]) { inProgress[url].push(done); return; }
+/******/ 			var script, needAttach;
+/******/ 			if(key !== undefined) {
+/******/ 				var scripts = document.getElementsByTagName("script");
+/******/ 				for(var i = 0; i < scripts.length; i++) {
+/******/ 					var s = scripts[i];
+/******/ 					if(s.getAttribute("src") == url || s.getAttribute("data-webpack") == dataWebpackPrefix + key) { script = s; break; }
+/******/ 				}
+/******/ 			}
+/******/ 			if(!script) {
+/******/ 				needAttach = true;
+/******/ 				script = document.createElement('script');
+/******/ 		
+/******/ 				script.charset = 'utf-8';
+/******/ 				script.timeout = 120;
+/******/ 				if (__webpack_require__.nc) {
+/******/ 					script.setAttribute("nonce", __webpack_require__.nc);
+/******/ 				}
+/******/ 				script.setAttribute("data-webpack", dataWebpackPrefix + key);
+/******/ 		
+/******/ 				script.src = url;
+/******/ 			}
+/******/ 			inProgress[url] = [done];
+/******/ 			var onScriptComplete = (prev, event) => {
+/******/ 				// avoid mem leaks in IE.
+/******/ 				script.onerror = script.onload = null;
+/******/ 				clearTimeout(timeout);
+/******/ 				var doneFns = inProgress[url];
+/******/ 				delete inProgress[url];
+/******/ 				script.parentNode && script.parentNode.removeChild(script);
+/******/ 				doneFns && doneFns.forEach((fn) => (fn(event)));
+/******/ 				if(prev) return prev(event);
+/******/ 			}
+/******/ 			var timeout = setTimeout(onScriptComplete.bind(null, undefined, { type: 'timeout', target: script }), 120000);
+/******/ 			script.onerror = onScriptComplete.bind(null, script.onerror);
+/******/ 			script.onload = onScriptComplete.bind(null, script.onload);
+/******/ 			needAttach && document.head.appendChild(script);
+/******/ 		};
+/******/ 	})();
+/******/ 	
 /******/ 	/* webpack/runtime/make namespace object */
 /******/ 	(() => {
 /******/ 		// define __esModule on exports
@@ -107,6 +234,21 @@ eval("module.exports = __webpack_require__.p + \"b508e98f37ad6810f839.wasm\";\n\
 /******/ 				Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
 /******/ 			}
 /******/ 			Object.defineProperty(exports, '__esModule', { value: true });
+/******/ 		};
+/******/ 	})();
+/******/ 	
+/******/ 	/* webpack/runtime/wasm loading */
+/******/ 	(() => {
+/******/ 		__webpack_require__.v = (exports, wasmModuleId, wasmModuleHash, importsObj) => {
+/******/ 			var req = fetch(__webpack_require__.p + "" + wasmModuleHash + ".module.wasm");
+/******/ 			if (typeof WebAssembly.instantiateStreaming === 'function') {
+/******/ 				return WebAssembly.instantiateStreaming(req, importsObj)
+/******/ 					.then((res) => (Object.assign(exports, res.instance.exports)));
+/******/ 			}
+/******/ 			return req
+/******/ 				.then((x) => (x.arrayBuffer()))
+/******/ 				.then((bytes) => (WebAssembly.instantiate(bytes, importsObj)))
+/******/ 				.then((res) => (Object.assign(exports, res.instance.exports)));
 /******/ 		};
 /******/ 	})();
 /******/ 	
@@ -135,7 +277,7 @@ eval("module.exports = __webpack_require__.p + \"b508e98f37ad6810f839.wasm\";\n\
 /******/ 	
 /******/ 	/* webpack/runtime/jsonp chunk loading */
 /******/ 	(() => {
-/******/ 		__webpack_require__.b = document.baseURI || self.location.href;
+/******/ 		// no baseURI
 /******/ 		
 /******/ 		// object to store loaded and loading chunks
 /******/ 		// undefined = chunk not loaded, null = chunk preloaded/prefetched
@@ -144,7 +286,44 @@ eval("module.exports = __webpack_require__.p + \"b508e98f37ad6810f839.wasm\";\n\
 /******/ 			"main": 0
 /******/ 		};
 /******/ 		
-/******/ 		// no chunk on demand loading
+/******/ 		__webpack_require__.f.j = (chunkId, promises) => {
+/******/ 				// JSONP chunk loading for javascript
+/******/ 				var installedChunkData = __webpack_require__.o(installedChunks, chunkId) ? installedChunks[chunkId] : undefined;
+/******/ 				if(installedChunkData !== 0) { // 0 means "already installed".
+/******/ 		
+/******/ 					// a Promise means "currently loading".
+/******/ 					if(installedChunkData) {
+/******/ 						promises.push(installedChunkData[2]);
+/******/ 					} else {
+/******/ 						if(true) { // all chunks have JS
+/******/ 							// setup Promise in chunk cache
+/******/ 							var promise = new Promise((resolve, reject) => (installedChunkData = installedChunks[chunkId] = [resolve, reject]));
+/******/ 							promises.push(installedChunkData[2] = promise);
+/******/ 		
+/******/ 							// start chunk loading
+/******/ 							var url = __webpack_require__.p + __webpack_require__.u(chunkId);
+/******/ 							// create error before stack unwound to get useful stacktrace later
+/******/ 							var error = new Error();
+/******/ 							var loadingEnded = (event) => {
+/******/ 								if(__webpack_require__.o(installedChunks, chunkId)) {
+/******/ 									installedChunkData = installedChunks[chunkId];
+/******/ 									if(installedChunkData !== 0) installedChunks[chunkId] = undefined;
+/******/ 									if(installedChunkData) {
+/******/ 										var errorType = event && (event.type === 'load' ? 'missing' : event.type);
+/******/ 										var realSrc = event && event.target && event.target.src;
+/******/ 										error.message = 'Loading chunk ' + chunkId + ' failed.\n(' + errorType + ': ' + realSrc + ')';
+/******/ 										error.name = 'ChunkLoadError';
+/******/ 										error.type = errorType;
+/******/ 										error.request = realSrc;
+/******/ 										installedChunkData[1](error);
+/******/ 									}
+/******/ 								}
+/******/ 							};
+/******/ 							__webpack_require__.l(url, loadingEnded, "chunk-" + chunkId, chunkId);
+/******/ 						}
+/******/ 					}
+/******/ 				}
+/******/ 		};
 /******/ 		
 /******/ 		// no prefetching
 /******/ 		
@@ -156,7 +335,34 @@ eval("module.exports = __webpack_require__.p + \"b508e98f37ad6810f839.wasm\";\n\
 /******/ 		
 /******/ 		// no on chunks loaded
 /******/ 		
-/******/ 		// no jsonp function
+/******/ 		// install a JSONP callback for chunk loading
+/******/ 		var webpackJsonpCallback = (parentChunkLoadingFunction, data) => {
+/******/ 			var [chunkIds, moreModules, runtime] = data;
+/******/ 			// add "moreModules" to the modules object,
+/******/ 			// then flag all "chunkIds" as loaded and fire callback
+/******/ 			var moduleId, chunkId, i = 0;
+/******/ 			if(chunkIds.some((id) => (installedChunks[id] !== 0))) {
+/******/ 				for(moduleId in moreModules) {
+/******/ 					if(__webpack_require__.o(moreModules, moduleId)) {
+/******/ 						__webpack_require__.m[moduleId] = moreModules[moduleId];
+/******/ 					}
+/******/ 				}
+/******/ 				if(runtime) var result = runtime(__webpack_require__);
+/******/ 			}
+/******/ 			if(parentChunkLoadingFunction) parentChunkLoadingFunction(data);
+/******/ 			for(;i < chunkIds.length; i++) {
+/******/ 				chunkId = chunkIds[i];
+/******/ 				if(__webpack_require__.o(installedChunks, chunkId) && installedChunks[chunkId]) {
+/******/ 					installedChunks[chunkId][0]();
+/******/ 				}
+/******/ 				installedChunks[chunkId] = 0;
+/******/ 			}
+/******/ 		
+/******/ 		}
+/******/ 		
+/******/ 		var chunkLoadingGlobal = self["webpackChunkcabin_scene"] = self["webpackChunkcabin_scene"] || [];
+/******/ 		chunkLoadingGlobal.forEach(webpackJsonpCallback.bind(null, 0));
+/******/ 		chunkLoadingGlobal.push = webpackJsonpCallback.bind(null, chunkLoadingGlobal.push.bind(chunkLoadingGlobal));
 /******/ 	})();
 /******/ 	
 /************************************************************************/
