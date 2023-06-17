@@ -32,22 +32,30 @@ const main = async () => {
     const canvas = document.querySelector("#canvas")
     const gl = canvas.getContext("webgl2")
 
-    const handleResize = (gl, ro) => {
-        gl.canvas.width = gl.canvas.clientWidth
-        gl.canvas.height = gl.canvas.clientHeight
-
-        gl.viewport(0, 0, gl.canvas.width, gl.canvas.height)
-        setOverlay(`${gl.canvas.width}x${gl.canvas.height}`)
+    // Resize stuff
+    let aspect = canvas.clientWidth / canvas.clientHeight
+    let targetCanvasWidth = gl.canvas.width
+    let targetCanvasHeight = gl.canvas.height
+    const onResize = ro => {
+        for (const entry of ro) {
+            if (entry.devicePixelContentBoxSize) {
+                targetCanvasWidth = entry.devicePixelContentBoxSize[0].inlineSize
+                targetCanvasHeight = entry.devicePixelContentBoxSize[0].blockSize
+            } else if (entry.contentBoxSize) {
+                targetCanvasWidth = entry.contentBoxSize[0].inlineSize * window.devicePixelRatio
+                targetCanvasHeight = entry.contentBoxSize[0].blockSize * window.devicePixelRatio
+            } else {
+                targetCanvasWidth = entry.contentRect.width * window.devicePixelRatio
+                targetCanvasHeight = entry.contentRect.height * window.devicePixelRatio
+            }
+        }
     }
-
-    handleResize(gl) // Setting initial size
-    // const resizeObserver = new ResizeObserver(ro => setOverlay(`${ro[0].devicePixelContentBoxSize[0].inlineSize}x${ro[0].devicePixelContentBoxSize[0].blockSize}`)) // Listen for canvas size changes
-    // const resizeObserver = new ResizeObserver(ro => console.log(ro)) // Listen for canvas size changes
-    // try {
-    //     resizeObserver.observe(canvas, { box: "device-pixel-content-box" })
-    // } catch {
-    //     resizeObserver.observe(canvas, { box: "content-box" })
-    // }
+    const resizeObserver = new ResizeObserver(onResize) // Listen for canvas size changes
+    try {
+        resizeObserver.observe(canvas, { box: "device-pixel-content-box" })
+    } catch {
+        resizeObserver.observe(canvas, { box: "content-box" })
+    }
 
 
     if (!gl) {
@@ -61,12 +69,16 @@ const main = async () => {
 
     gl.useProgram(program)
 
-    gl.clearColor(0.7, 0.7, 0.9, 1.0)
+    gl.clearColor(0.6, 0.74, 0.95, 1.0)
 
     const draw = () => {
-        if (canvas.clientWidth !== canvas.width || canvas.clientHeight !== canvas.height)
-            handleResize(gl)
-
+        // Handle resize
+        if (canvas.clientWidth !== targetCanvasWidth || canvas.clientHeight !== targetCanvasHeight) {
+            gl.canvas.width = targetCanvasWidth
+            gl.canvas.height = targetCanvasHeight
+            aspect = canvas.clientWidth / canvas.clientHeight
+            gl.viewport(0, 0, gl.canvas.width, gl.canvas.height)
+        }
 
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 
