@@ -1,9 +1,23 @@
+html,
 body {
+    background-color: black;
     margin: 0;
+    overscroll-behavior: none
 }
 
 canvas {
     display: block;
-    width: 100vw;
-    height: 100vh;
+    width: 100dvw;
+    height: 100dvh;
+}
+
+#overlay {
+    font-size: 1.1rem;
+    font-family: monospace;
+    margin: 0.25rem 0 0 0.25rem;
+    position: absolute;
+    color: Lavender;
+    font-weight: 600;
+    text-shadow: 1px 1px MidnightBlue;
+    white-space: pre;
 }

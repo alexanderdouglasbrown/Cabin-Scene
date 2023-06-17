@@ -1,5 +1,3 @@
-// https://rustwasm.github.io/wasm-bindgen/examples/hello-world.html
-
 const path = require('path');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 const WasmPackPlugin = require("@wasm-tool/wasm-pack-plugin");

@@ -24,18 +24,31 @@ void main() {
 }
 `
 
-const handleResize = (gl) => {
-    gl.canvas.width = gl.canvas.clientWidth
-    gl.canvas.height = gl.canvas.clientHeight
-
-    gl.viewport(0, 0, gl.canvas.width, gl.canvas.height)
-}
-
 const main = async () => {
+    const setOverlay = msg => {
+        document.querySelector("#overlay").textContent = msg
+    }
+
     const canvas = document.querySelector("#canvas")
     const gl = canvas.getContext("webgl2")
 
-    handleResize(gl)
+    const handleResize = (gl, ro) => {
+        gl.canvas.width = gl.canvas.clientWidth
+        gl.canvas.height = gl.canvas.clientHeight
+
+        gl.viewport(0, 0, gl.canvas.width, gl.canvas.height)
+        setOverlay(`${gl.canvas.width}x${gl.canvas.height}`)
+    }
+
+    handleResize(gl) // Setting initial size
+    // const resizeObserver = new ResizeObserver(ro => setOverlay(`${ro[0].devicePixelContentBoxSize[0].inlineSize}x${ro[0].devicePixelContentBoxSize[0].blockSize}`)) // Listen for canvas size changes
+    // const resizeObserver = new ResizeObserver(ro => console.log(ro)) // Listen for canvas size changes
+    // try {
+    //     resizeObserver.observe(canvas, { box: "device-pixel-content-box" })
+    // } catch {
+    //     resizeObserver.observe(canvas, { box: "content-box" })
+    // }
+
 
     if (!gl) {
         console.error("WebGL failed to load")
@@ -48,9 +61,14 @@ const main = async () => {
 
     gl.useProgram(program)
 
+    gl.clearColor(0.7, 0.7, 0.9, 1.0)
+
     const draw = () => {
         if (canvas.clientWidth !== canvas.width || canvas.clientHeight !== canvas.height)
             handleResize(gl)
+
+
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 
         gl.drawArrays(gl.POINTS, 0, 1)
 
