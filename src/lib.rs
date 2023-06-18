@@ -7,7 +7,7 @@ use js_sys::Float32Array;
 pub fn degrees_to_radians(degrees: f32) -> f32 {
     use std::f32::consts::PI;
 
-    degrees * PI / 180.0f32
+    degrees * PI / 180.0
 }
 
 #[wasm_bindgen]
@@ -180,7 +180,8 @@ pub fn m4_inverse(m: Float32Array) -> Float32Array{
     Float32Array::from(&arr[..])
 }
 
-fn m4_translation(tx: f32, ty: f32, tz: f32) -> Float32Array {
+#[wasm_bindgen]
+pub fn m4_translation(tx: f32, ty: f32, tz: f32) -> Float32Array {
     let arr = [
         1.0, 0.0, 0.0, 0.0,
         0.0, 1.0, 0.0, 0.0,
@@ -191,11 +192,7 @@ fn m4_translation(tx: f32, ty: f32, tz: f32) -> Float32Array {
 }
 
 #[wasm_bindgen]
-pub fn m4_translate(m: Float32Array, tx: f32, ty: f32, tz: f32) -> Float32Array {
-    m4_multiply(m, m4_translation(tx, ty, tz))
-}
-
-fn m4_scaling(sx: f32, sy: f32, sz: f32) -> Float32Array {
+pub fn m4_scaling(sx: f32, sy: f32, sz: f32) -> Float32Array {
     let arr = [
         sx, 0.0, 0.0, 0.0,
         0.0, sy, 0.0, 0.0,
@@ -206,11 +203,7 @@ fn m4_scaling(sx: f32, sy: f32, sz: f32) -> Float32Array {
 }
 
 #[wasm_bindgen]
-pub fn m4_scale(m: Float32Array, sx: f32, sy: f32, sz: f32) -> Float32Array {
-    m4_multiply(m, m4_scaling(sx, sy, sz))
-}
-
-fn m4_x_rotation(angle: f32) -> Float32Array {
+pub fn m4_x_rotation(angle: f32) -> Float32Array {
     let c = angle.cos();
     let s = angle.sin();
 
@@ -224,11 +217,7 @@ fn m4_x_rotation(angle: f32) -> Float32Array {
 }
 
 #[wasm_bindgen]
-pub fn m4_x_rotate(m: Float32Array, angle: f32) -> Float32Array {
-    m4_multiply(m, m4_x_rotation(angle))
-}
-
-fn m4_y_rotation(angle: f32) -> Float32Array {
+pub fn m4_y_rotation(angle: f32) -> Float32Array {
     let c = angle.cos();
     let s = angle.sin();
 
@@ -242,11 +231,7 @@ fn m4_y_rotation(angle: f32) -> Float32Array {
 }
 
 #[wasm_bindgen]
-pub fn m4_y_rotate(m: Float32Array, angle: f32) -> Float32Array {
-    m4_multiply(m, m4_y_rotation(angle))
-}
-
-fn m4_z_rotation(angle: f32) -> Float32Array {
+pub fn m4_z_rotation(angle: f32) -> Float32Array {
     let c = angle.cos();
     let s = angle.sin();
 
@@ -257,11 +242,6 @@ fn m4_z_rotation(angle: f32) -> Float32Array {
         0.0, 0.0, 0.0, 1.0
     ];
     Float32Array::from(&arr[..])
-}
-
-#[wasm_bindgen]
-pub fn m4_z_rotate(m: Float32Array, angle: f32) -> Float32Array {
-    m4_multiply(m, m4_z_rotation(angle))
 }
 
 #[wasm_bindgen]

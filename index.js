@@ -1,4 +1,4 @@
-import {degrees_to_radians, m4_perspective, m4_look_at, m4_inverse, m4_identity} from './pkg'
+import {degrees_to_radians, m4_perspective, m4_look_at, m4_inverse, m4_y_rotation} from './pkg'
 
 import objLoader from './src/objLoader'
 import { createShader, createProgram } from './src/shaderFunctions'
@@ -215,7 +215,7 @@ const main = async () => {
     
         const view = m4_inverse(camera)
 
-        const world = m4_identity()
+        const world = m4_y_rotation(degrees_to_radians((frameTime * 0.025) % 360))
 
         gl.uniformMatrix4fv(uWorldLoc, false, world)
         gl.uniformMatrix4fv(uViewLoc, false, view)
