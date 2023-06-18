@@ -52,54 +52,80 @@ pub fn m4_identity() -> Float32Array {
 }
 
 #[wasm_bindgen]
-pub fn m4_perspective(fov: f32, aspect: f32, near: f32, far: f32) -> Float32Array {
-    use std::f32::consts::PI;
-
-    let f = (PI * 0.5 - 0.5 * fov).tan();
-    let range_inv = 1.0 / (near - far);
+pub fn m4_multiply(a: Float32Array, b: Float32Array) -> Float32Array {
+    let b00 = b.get_index(0);
+    let b01 = b.get_index(1);
+    let b02 = b.get_index(2);
+    let b03 = b.get_index(3);
+    let b10 = b.get_index(4);
+    let b11 = b.get_index(5);
+    let b12 = b.get_index(6);
+    let b13 = b.get_index(7);
+    let b20 = b.get_index(8);
+    let b21 = b.get_index(9);
+    let b22 = b.get_index(10);
+    let b23 = b.get_index(11);
+    let b30 = b.get_index(12);
+    let b31 = b.get_index(13);
+    let b32 = b.get_index(14);
+    let b33 = b.get_index(15);
+    let a00 = a.get_index(0);
+    let a01 = a.get_index(1);
+    let a02 = a.get_index(2);
+    let a03 = a.get_index(3);
+    let a10 = a.get_index(4);
+    let a11 = a.get_index(5);
+    let a12 = a.get_index(6);
+    let a13 = a.get_index(7);
+    let a20 = a.get_index(8);
+    let a21 = a.get_index(9);
+    let a22 = a.get_index(10);
+    let a23 = a.get_index(11);
+    let a30 = a.get_index(12);
+    let a31 = a.get_index(13);
+    let a32 = a.get_index(14);
+    let a33 = a.get_index(15);
 
     let arr = [
-        (f / aspect), 0.0, 0.0, 0.0,
-        0.0, f, 0.0, 0.0,
-        0.0, 0.0, ((near + far) * range_inv), -1.0,
-        0.0, 0.0, (near * far * range_inv * 2.0), 0.0
+        b00 * a00 + b01 * a10 + b02 * a20 + b03 * a30,
+        b00 * a01 + b01 * a11 + b02 * a21 + b03 * a31,
+        b00 * a02 + b01 * a12 + b02 * a22 + b03 * a32,
+        b00 * a03 + b01 * a13 + b02 * a23 + b03 * a33,
+        b10 * a00 + b11 * a10 + b12 * a20 + b13 * a30,
+        b10 * a01 + b11 * a11 + b12 * a21 + b13 * a31,
+        b10 * a02 + b11 * a12 + b12 * a22 + b13 * a32,
+        b10 * a03 + b11 * a13 + b12 * a23 + b13 * a33,
+        b20 * a00 + b21 * a10 + b22 * a20 + b23 * a30,
+        b20 * a01 + b21 * a11 + b22 * a21 + b23 * a31,
+        b20 * a02 + b21 * a12 + b22 * a22 + b23 * a32,
+        b20 * a03 + b21 * a13 + b22 * a23 + b23 * a33,
+        b30 * a00 + b31 * a10 + b32 * a20 + b33 * a30,
+        b30 * a01 + b31 * a11 + b32 * a21 + b33 * a31,
+        b30 * a02 + b31 * a12 + b32 * a22 + b33 * a32,
+        b30 * a03 + b31 * a13 + b32 * a23 + b33 * a33,
     ];
-    Float32Array::from(&arr[..])
-}
 
-#[wasm_bindgen]
-pub fn m4_look_at(camera_pos: Float32Array, camera_target: Float32Array, up: Float32Array) -> Float32Array {
-    let z_axis = normalize(subtract_vectors(Float32Array::clone(&camera_pos), camera_target));
-    let x_axis = normalize(cross(up, Float32Array::clone(&z_axis)));
-    let y_axis = normalize(cross(Float32Array::clone(&z_axis), Float32Array::clone(&x_axis)));
-
-    let arr = [
-        x_axis.get_index(0), x_axis.get_index(1), x_axis.get_index(2), 0.0,
-        y_axis.get_index(0), y_axis.get_index(1), y_axis.get_index(2), 0.0,
-        z_axis.get_index(0), z_axis.get_index(1), z_axis.get_index(2), 0.0,
-        camera_pos.get_index(0), camera_pos.get_index(1), camera_pos.get_index(2), 1.0
-    ];
     Float32Array::from(&arr[..])
 }
 
 #[wasm_bindgen]
 pub fn m4_inverse(m: Float32Array) -> Float32Array{
-    let m00 = m.get_index(0 * 4 + 0);
-    let m01 = m.get_index(0 * 4 + 1);
-    let m02 = m.get_index(0 * 4 + 2);
-    let m03 = m.get_index(0 * 4 + 3);
-    let m10 = m.get_index(1 * 4 + 0);
-    let m11 = m.get_index(1 * 4 + 1);
-    let m12 = m.get_index(1 * 4 + 2);
-    let m13 = m.get_index(1 * 4 + 3);
-    let m20 = m.get_index(2 * 4 + 0);
-    let m21 = m.get_index(2 * 4 + 1);
-    let m22 = m.get_index(2 * 4 + 2);
-    let m23 = m.get_index(2 * 4 + 3);
-    let m30 = m.get_index(3 * 4 + 0);
-    let m31 = m.get_index(3 * 4 + 1);
-    let m32 = m.get_index(3 * 4 + 2);
-    let m33 = m.get_index(3 * 4 + 3);
+    let m00 = m.get_index(0);
+    let m01 = m.get_index(1);
+    let m02 = m.get_index(2);
+    let m03 = m.get_index(3);
+    let m10 = m.get_index(4);
+    let m11 = m.get_index(5);
+    let m12 = m.get_index(6);
+    let m13 = m.get_index(7);
+    let m20 = m.get_index(8);
+    let m21 = m.get_index(9);
+    let m22 = m.get_index(10);
+    let m23 = m.get_index(11);
+    let m30 = m.get_index(12);
+    let m31 = m.get_index(13);
+    let m32 = m.get_index(14);
+    let m33 = m.get_index(15);
     let tmp_0 = m22 * m33;
     let tmp_1 = m32 * m23;
     let tmp_2 = m12 * m33;
@@ -154,14 +180,139 @@ pub fn m4_inverse(m: Float32Array) -> Float32Array{
     Float32Array::from(&arr[..])
 }
 
-// #[wasm_bindgen]
-// pub fn yRotation(angle){}
+fn m4_translation(tx: f32, ty: f32, tz: f32) -> Float32Array {
+    let arr = [
+        1.0, 0.0, 0.0, 0.0,
+        0.0, 1.0, 0.0, 0.0,
+        0.0, 0.0, 1.0, 0.0,
+        tx, ty, tz, 1.0
+    ];
+    Float32Array::from(&arr[..])
+}
 
-/*
-[
-    (f / aspect), 0.0, 0.0, 0.0,
-    0.0, f, 0.0, 0.0,
-    0.0, 0.0, ((near + far) * rangeInv), -1.0,
-    0.0, 0.0, (near * far * rangeInv * 2.0), 0.0
-]
-        */
+#[wasm_bindgen]
+pub fn m4_translate(m: Float32Array, tx: f32, ty: f32, tz: f32) -> Float32Array {
+    m4_multiply(m, m4_translation(tx, ty, tz))
+}
+
+fn m4_scaling(sx: f32, sy: f32, sz: f32) -> Float32Array {
+    let arr = [
+        sx, 0.0, 0.0, 0.0,
+        0.0, sy, 0.0, 0.0,
+        0.0, 0.0, sz, 0.0,
+        0.0, 0.0, 0.0, 1.0
+    ];
+    Float32Array::from(&arr[..])
+}
+
+#[wasm_bindgen]
+pub fn m4_scale(m: Float32Array, sx: f32, sy: f32, sz: f32) -> Float32Array {
+    m4_multiply(m, m4_scaling(sx, sy, sz))
+}
+
+fn m4_x_rotation(angle: f32) -> Float32Array {
+    let c = angle.cos();
+    let s = angle.sin();
+
+    let arr = [
+        1.0, 0.0, 0.0, 0.0,
+        0.0, c, s, 0.0,
+        0.0, -s, c, 0.0,
+        0.0, 0.0, 0.0, 1.0
+    ];
+    Float32Array::from(&arr[..])
+}
+
+#[wasm_bindgen]
+pub fn m4_x_rotate(m: Float32Array, angle: f32) -> Float32Array {
+    m4_multiply(m, m4_x_rotation(angle))
+}
+
+fn m4_y_rotation(angle: f32) -> Float32Array {
+    let c = angle.cos();
+    let s = angle.sin();
+
+    let arr = [
+        c, 0.0, -s, 0.0,
+        0.0, 1.0, 0.0, 0.0,
+        s, 0.0, c, 0.0,
+        0.0, 0.0, 0.0, 1.0
+    ];
+    Float32Array::from(&arr[..])
+}
+
+#[wasm_bindgen]
+pub fn m4_y_rotate(m: Float32Array, angle: f32) -> Float32Array {
+    m4_multiply(m, m4_y_rotation(angle))
+}
+
+fn m4_z_rotation(angle: f32) -> Float32Array {
+    let c = angle.cos();
+    let s = angle.sin();
+
+    let arr = [
+        c, s, 0.0, 0.0,
+        -s, c, 0.0, 0.0,
+        0.0, 0.0, 1.0, 0.0,
+        0.0, 0.0, 0.0, 1.0
+    ];
+    Float32Array::from(&arr[..])
+}
+
+#[wasm_bindgen]
+pub fn m4_z_rotate(m: Float32Array, angle: f32) -> Float32Array {
+    m4_multiply(m, m4_z_rotation(angle))
+}
+
+#[wasm_bindgen]
+pub fn m4_projection(width: f32, height: f32, depth: f32) -> Float32Array {
+    let arr = [
+        (2.0 / width), 0.0, 0.0, 0.0,
+        0.0, (-2.0 / height), 0.0, 0.0,
+        0.0, 0.0, (2.0 / depth), 0.0,
+        -1.0, 1.0, 0.0, 1.0
+    ];
+    Float32Array::from(&arr[..])
+}
+
+#[wasm_bindgen]
+pub fn m4_transpose(m: Float32Array) -> Float32Array {
+    let arr = [
+        m.get_index(0), m.get_index(4), m.get_index(8), m.get_index(12),
+        m.get_index(1), m.get_index(5), m.get_index(9), m.get_index(13),
+        m.get_index(2), m.get_index(6), m.get_index(10), m.get_index(14),
+        m.get_index(3), m.get_index(7), m.get_index(11), m.get_index(15),
+    ];
+    Float32Array::from(&arr[..])
+}
+
+#[wasm_bindgen]
+pub fn m4_perspective(fov: f32, aspect: f32, near: f32, far: f32) -> Float32Array {
+    use std::f32::consts::PI;
+
+    let f = (PI * 0.5 - 0.5 * fov).tan();
+    let range_inv = 1.0 / (near - far);
+
+    let arr = [
+        (f / aspect), 0.0, 0.0, 0.0,
+        0.0, f, 0.0, 0.0,
+        0.0, 0.0, ((near + far) * range_inv), -1.0,
+        0.0, 0.0, (near * far * range_inv * 2.0), 0.0
+    ];
+    Float32Array::from(&arr[..])
+}
+
+#[wasm_bindgen]
+pub fn m4_look_at(camera_pos: Float32Array, camera_target: Float32Array, up: Float32Array) -> Float32Array {
+    let z_axis = normalize(subtract_vectors(Float32Array::clone(&camera_pos), camera_target));
+    let x_axis = normalize(cross(up, Float32Array::clone(&z_axis)));
+    let y_axis = normalize(cross(Float32Array::clone(&z_axis), Float32Array::clone(&x_axis)));
+
+    let arr = [
+        x_axis.get_index(0), x_axis.get_index(1), x_axis.get_index(2), 0.0,
+        y_axis.get_index(0), y_axis.get_index(1), y_axis.get_index(2), 0.0,
+        z_axis.get_index(0), z_axis.get_index(1), z_axis.get_index(2), 0.0,
+        camera_pos.get_index(0), camera_pos.get_index(1), camera_pos.get_index(2), 1.0
+    ];
+    Float32Array::from(&arr[..])
+}
