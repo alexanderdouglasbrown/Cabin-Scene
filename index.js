@@ -1,4 +1,4 @@
-import('./pkg').catch(console.error)
+import {degrees_to_radians, m4_perspective, m4_look_at, m4_inverse, m4_identity} from './pkg'
 
 import objLoader from './src/objLoader'
 import { createShader, createProgram } from './src/shaderFunctions'
@@ -9,11 +9,15 @@ in vec4 a_position;
 in vec3 a_normal;
 in vec2 a_textureCoord;
 
+uniform mat4 u_world;
+uniform mat4 u_view;
+uniform mat4 u_projection;
+
 out vec3 v_normal;
 out vec2 v_textureCoord;
 
 void main() {
-    gl_Position = a_position;
+    gl_Position = u_projection * u_view * u_world * a_position;
 }
 `
 
@@ -91,7 +95,11 @@ const main = async () => {
     const aNormalLoc = gl.getAttribLocation(program, "a_normal")
     const aTextureCoordLoc = gl.getAttribLocation(program, "a_textureCoord")
 
-    const uDiffuseLoc = gl.getUniformLocation(program, "u_diffuse");
+    const uWorldLoc = gl.getUniformLocation(program, "u_world")
+    const uViewLoc = gl.getUniformLocation(program, "u_view")
+    const uProjectionLoc = gl.getUniformLocation(program, "u_projection")
+
+    const uDiffuseLoc = gl.getUniformLocation(program, "u_diffuse")
     const uOpacityLoc = gl.getUniformLocation(program, "u_opacity")
 
     const newMeshDataArray = parsedObjs => {
@@ -179,14 +187,37 @@ const main = async () => {
     gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true)
     gl.clearColor(0.6, 0.74, 0.95, 1.0)
 
-    const draw = () => {
+    let isInitialSetSize = true
+
+    const zNear = 0.1
+    const zFar = 500
+    const fov = degrees_to_radians(90)
+
+
+    const draw = frameTime => {
         // Handle resize
-        if (canvas.clientWidth !== targetCanvasWidth || canvas.clientHeight !== targetCanvasHeight) {
+        if (isInitialSetSize || canvas.clientWidth !== targetCanvasWidth || canvas.clientHeight !== targetCanvasHeight) {
             gl.canvas.width = targetCanvasWidth
             gl.canvas.height = targetCanvasHeight
             aspect = canvas.clientWidth / canvas.clientHeight
+            isInitialSetSize = false
             gl.viewport(0, 0, gl.canvas.width, gl.canvas.height)
         }
+
+        const projection = m4_perspective(fov, aspect, zNear, zFar)
+    
+        const cameraTarget = [0, 0, 0]
+        const cameraPosition = [0, 7, 25]
+        const up = [0, 1, 0]
+        const camera = m4_look_at(cameraPosition, cameraTarget, up)
+    
+        const view = m4_inverse(camera)
+
+        const world = m4_identity()
+
+        gl.uniformMatrix4fv(uWorldLoc, false, world)
+        gl.uniformMatrix4fv(uViewLoc, false, view)
+        gl.uniformMatrix4fv(uProjectionLoc, false, projection)
 
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 
