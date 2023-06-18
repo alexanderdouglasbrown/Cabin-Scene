@@ -18,6 +18,9 @@ out vec2 v_textureCoord;
 
 void main() {
     gl_Position = u_projection * u_view * u_world * a_position;
+
+    v_normal = a_normal;
+    v_textureCoord = a_textureCoord;
 }
 `
 
@@ -56,7 +59,7 @@ const main = async () => {
     const gl = canvas.getContext("webgl2")
 
     if (!gl) {
-        console.error("WebGL failed to load")
+        setOverlay("WebGL2 failed to load")
         return
     }
 
@@ -88,8 +91,6 @@ const main = async () => {
     const vertexShader = createShader(gl, gl.VERTEX_SHADER, vertexShaderGLSL)
     const fragmentShader = createShader(gl, gl.FRAGMENT_SHADER, fragmentShaderGLSL)
     const program = createProgram(gl, vertexShader, fragmentShader)
-
-    gl.useProgram(program)
 
     const aPositionLoc = gl.getAttribLocation(program, "a_position")
     const aNormalLoc = gl.getAttribLocation(program, "a_normal")
@@ -180,6 +181,8 @@ const main = async () => {
     const sceneMesh = await objLoader('./models', 'scene')
     const sceneMeshData = newMeshDataArray(sceneMesh)
 
+    gl.useProgram(program)
+    
     gl.enable(gl.CULL_FACE)
     gl.enable(gl.DEPTH_TEST)
     gl.enable(gl.BLEND)
@@ -192,7 +195,6 @@ const main = async () => {
     const zNear = 0.1
     const zFar = 500
     const fov = degrees_to_radians(90)
-
 
     const draw = frameTime => {
         // Handle resize
