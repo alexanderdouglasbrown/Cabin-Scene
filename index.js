@@ -1,4 +1,4 @@
-import {degrees_to_radians, m4_perspective, m4_look_at, m4_inverse, m4_y_rotation} from './pkg'
+import { degrees_to_radians, m4_perspective, m4_look_at, m4_inverse, m4_y_rotation } from './pkg'
 
 import objLoader from './src/objLoader'
 import { createShader, createProgram } from './src/shaderFunctions'
@@ -88,6 +88,8 @@ const main = async () => {
         resizeObserver.observe(canvas, { box: "content-box" })
     }
 
+    const loadingImagesSet = new Set()
+
     const vertexShader = createShader(gl, gl.VERTEX_SHADER, vertexShaderGLSL)
     const fragmentShader = createShader(gl, gl.FRAGMENT_SHADER, fragmentShaderGLSL)
     const program = createProgram(gl, vertexShader, fragmentShader)
@@ -128,14 +130,22 @@ const main = async () => {
                 // Filler white pixel texture to be replaced if a real texture is needed
                 gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([255, 255, 255, 255]))
 
+                // The use of setOverlay() here causes a race condition if I decide to do something else with that function down the line
+                // But as of now it's fine
                 if (mesh.material.diffuseMap) {
                     const image = new Image()
                     image.src = `models/${mesh.material.diffuseMap}`
+                    loadingImagesSet.add(mesh.material.diffuseMap)
+                    setOverlay("Loading textures...")
 
-                    image.onload = () => {
+                    image.onload = e => {
                         gl.bindTexture(gl.TEXTURE_2D, data.texture)
                         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image)
                         gl.generateMipmap(gl.TEXTURE_2D)
+
+                        loadingImagesSet.delete(mesh.material.diffuseMap)
+                        if (loadingImagesSet.size === 0)
+                            setOverlay(null)
                     }
                 }
 
@@ -182,7 +192,7 @@ const main = async () => {
     const sceneMeshData = newMeshDataArray(sceneMesh)
 
     gl.useProgram(program)
-    
+
     gl.enable(gl.CULL_FACE)
     gl.enable(gl.DEPTH_TEST)
     gl.enable(gl.BLEND)
@@ -207,12 +217,12 @@ const main = async () => {
         }
 
         const projection = m4_perspective(fov, aspect, zNear, zFar)
-    
+
         const cameraTarget = [0, 0, 0]
         const cameraPosition = [0, 7, 25]
         const up = [0, 1, 0]
         const camera = m4_look_at(cameraPosition, cameraTarget, up)
-    
+
         const view = m4_inverse(camera)
 
         const world = m4_y_rotation(degrees_to_radians((frameTime * 0.025) % 360))
