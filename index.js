@@ -89,11 +89,19 @@ const main = async () => {
         resizeObserver.observe(canvas, { box: "content-box" })
     }
 
+    gl.enable(gl.CULL_FACE)
+    gl.enable(gl.DEPTH_TEST)
+    gl.enable(gl.BLEND)
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true)
+    gl.clearColor(0.6, 0.74, 0.95, 1.0)
+
     const loadingImagesSet = new Set()
 
     const vertexShader = createShader(gl, gl.VERTEX_SHADER, vertexShaderGLSL)
     const fragmentShader = createShader(gl, gl.FRAGMENT_SHADER, fragmentShaderGLSL)
     const program = createProgram(gl, vertexShader, fragmentShader)
+    gl.useProgram(program)
 
     const aPositionLoc = gl.getAttribLocation(program, "a_position")
     const aNormalLoc = gl.getAttribLocation(program, "a_normal")
@@ -192,17 +200,12 @@ const main = async () => {
 
         return result
     }
+
     const sceneMesh = await objLoader('./models', 'scene')
     const sceneMeshData = newMeshDataArray(sceneMesh)
 
-    gl.useProgram(program)
-
-    gl.enable(gl.CULL_FACE)
-    gl.enable(gl.DEPTH_TEST)
-    gl.enable(gl.BLEND)
-    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
-    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true)
-    gl.clearColor(0.6, 0.74, 0.95, 1.0)
+    // const sunMesh = await objLoader('./models', 'sun')
+    // const sunMeshData = newMeshDataArray(sunMesh)
 
     let isInitialSetSize = true
 
@@ -238,7 +241,7 @@ const main = async () => {
 
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 
-        sceneMeshData.forEach(data => {
+        const drawMesh = data => {
             gl.bindVertexArray(data.vao)
 
             gl.uniform3fv(uDiffuseLoc, data.material.diffuse || [1.0, 1.0, 1.0])
@@ -251,7 +254,11 @@ const main = async () => {
             gl.bindTexture(gl.TEXTURE_2D, data.texture)
 
             gl.drawArrays(gl.TRIANGLES, 0, data.faces)
-        })
+        }
+
+        sceneMeshData.forEach(drawMesh)
+
+        // sunMesh.forEach()
 
         gl.drawArrays(gl.POINTS, 0, 1)
 
