@@ -1,4 +1,4 @@
-import { degrees_to_radians, m4_perspective, m4_look_at, m4_inverse, m4_y_rotation } from './pkg'
+import { degrees_to_radians, m4_perspective, m4_look_at, m4_inverse, m4_y_rotation, m4_identity, m4_translation } from './pkg'
 
 import objLoader from './src/objLoader'
 import { createShader, createProgram } from './src/shaderFunctions'
@@ -9,6 +9,7 @@ in vec4 a_position;
 in vec3 a_normal;
 in vec2 a_textureCoord;
 
+uniform mat4 u_model;
 uniform mat4 u_world;
 uniform mat4 u_view;
 uniform mat4 u_projection;
@@ -17,7 +18,7 @@ out vec3 v_normal;
 out vec2 v_textureCoord;
 
 void main() {
-    gl_Position = u_projection * u_view * u_world * a_position;
+    gl_Position = u_projection * u_view * u_world * u_model * a_position;
 
     v_normal = a_normal;
     v_textureCoord = a_textureCoord;
@@ -98,6 +99,7 @@ const main = async () => {
     const aNormalLoc = gl.getAttribLocation(program, "a_normal")
     const aTextureCoordLoc = gl.getAttribLocation(program, "a_textureCoord")
 
+    const uModelLoc = gl.getUniformLocation(program, "u_model")
     const uWorldLoc = gl.getUniformLocation(program, "u_world")
     const uViewLoc = gl.getUniformLocation(program, "u_view")
     const uProjectionLoc = gl.getUniformLocation(program, "u_projection")
@@ -107,6 +109,7 @@ const main = async () => {
 
     const newMeshDataArray = parsedObjs => {
         const newMeshData = () => ({
+            objName: undefined,
             vao: undefined,
             faces: 0,
             material: undefined,
@@ -121,6 +124,7 @@ const main = async () => {
             obj.meshes.forEach(mesh => {
                 const data = newMeshData()
 
+                data.objName = obj.objName
                 data.faces = mesh.faces
                 data.material = mesh.material
 
@@ -203,8 +207,22 @@ const main = async () => {
     let isInitialSetSize = true
 
     const zNear = 0.1
-    const zFar = 500
-    const fov = degrees_to_radians(90)
+    const zFar = 1000.0
+    const fov = degrees_to_radians(75)
+
+    const cameraTarget = [0, 0, 0]
+    const cameraPosition = [0, 7, 25]
+    const up = [0, 1, 0]
+    const camera = m4_look_at(cameraPosition, cameraTarget, up)
+
+    let world = m4_identity()
+
+    const model = m4_identity()
+    const view = m4_inverse(camera)
+    const projection = m4_perspective(fov, aspect, zNear, zFar)
+    gl.uniformMatrix4fv(uModelLoc, false, model)
+    gl.uniformMatrix4fv(uViewLoc, false, view)
+    gl.uniformMatrix4fv(uProjectionLoc, false, projection)
 
     const draw = frameTime => {
         // Handle resize
@@ -216,20 +234,8 @@ const main = async () => {
             gl.viewport(0, 0, gl.canvas.width, gl.canvas.height)
         }
 
-        const projection = m4_perspective(fov, aspect, zNear, zFar)
-
-        const cameraTarget = [0, 0, 0]
-        const cameraPosition = [0, 7, 25]
-        const up = [0, 1, 0]
-        const camera = m4_look_at(cameraPosition, cameraTarget, up)
-
-        const view = m4_inverse(camera)
-
-        const world = m4_y_rotation(degrees_to_radians((frameTime * 0.025) % 360))
-
+        world = m4_y_rotation(degrees_to_radians((frameTime * 0.025) % 360))
         gl.uniformMatrix4fv(uWorldLoc, false, world)
-        gl.uniformMatrix4fv(uViewLoc, false, view)
-        gl.uniformMatrix4fv(uProjectionLoc, false, projection)
 
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 
