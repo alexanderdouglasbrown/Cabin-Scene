@@ -1,4 +1,4 @@
-import { degrees_to_radians, m4_perspective, m4_look_at, m4_inverse, m4_y_rotation, m4_z_rotation, m4_identity, m4_translation, m4_scaling, m4_multiply, m4_x_rotation } from './pkg'
+import { degrees_to_radians, m4_perspective, m4_look_at, m4_inverse, m4_y_rotation, m4_z_rotation, m4_identity, m4_translation, m4_scaling, m4_multiply, m4_x_rotation, normalize } from './pkg'
 
 import objLoader from './src/objLoader'
 import { createShader, createProgram } from './src/shaderFunctions'
@@ -20,7 +20,7 @@ out vec2 v_textureCoord;
 void main() {
     gl_Position = u_projection * u_view * u_world * u_model * a_position;
 
-    v_normal = a_normal;
+    v_normal = normalize(a_normal);
     v_textureCoord = a_textureCoord;
 }
 `
@@ -31,6 +31,8 @@ precision highp float;
 in vec3 v_normal;
 in vec2 v_textureCoord;
 
+uniform vec3 u_lightDirection; // normalized
+
 uniform sampler2D u_diffuseMap;
 uniform vec3 u_diffuse;
 uniform float u_opacity;
@@ -38,14 +40,15 @@ uniform float u_opacity;
 out vec4 outColor;
 
 void main() {
-    vec3 normal = normalize(v_normal);
+    float light = max(dot(v_normal, u_lightDirection) * 0.5 + 0.75, 0.0);
+
     vec4 diffuseMapColor = texture(u_diffuseMap, v_textureCoord);
 
     vec3 finalDiffuse = u_diffuse * diffuseMapColor.rgb;
     float finalOpacity = u_opacity * diffuseMapColor.a;
 
     outColor = vec4(
-        finalDiffuse,
+        finalDiffuse * light,
         finalOpacity
     );
 }
@@ -112,7 +115,10 @@ const main = async () => {
     const uViewLoc = gl.getUniformLocation(program, "u_view")
     const uProjectionLoc = gl.getUniformLocation(program, "u_projection")
 
+    const uLightDirectionLoc = gl.getUniformLocation(program, "u_lightDirection")
     const uDiffuseLoc = gl.getUniformLocation(program, "u_diffuse")
+    // const uAmbientLoc = gl.getUniformLocation(program, "u_ambient")
+    // const uEmissiveLoc = gl.getUniformLocation(program, "u_emissive")
     const uOpacityLoc = gl.getUniformLocation(program, "u_opacity")
 
     const newMeshDataArray = parsedObjs => {
@@ -207,6 +213,13 @@ const main = async () => {
     const sunMesh = await objLoader('./models', 'sun')
     const sunMeshData = newMeshDataArray(sunMesh)
 
+    const sunPos = [50, 60, 250]
+    const sunScale = 15
+    // Blender's exported default rotation was not ideal
+    const sunRotateX = degrees_to_radians(180)
+    const sunRotateY = degrees_to_radians(90)
+    const sunRotateZ = degrees_to_radians(180)
+
     let isInitialSetSize = true
 
     const zNear = 0.1
@@ -233,9 +246,12 @@ const main = async () => {
         }
 
         const world = m4_y_rotation(degrees_to_radians((frameTime * 0.025) % 360))
+        // const world = m4_y_rotation(degrees_to_radians(180))
         const projection = m4_perspective(fov, aspect, zNear, zFar)
         gl.uniformMatrix4fv(uWorldLoc, false, world)
         gl.uniformMatrix4fv(uProjectionLoc, false, projection)
+
+        gl.uniform3fv(uLightDirectionLoc, normalize(sunPos))
 
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 
@@ -260,13 +276,6 @@ const main = async () => {
         sceneMeshData.forEach(drawMesh)
 
         // Sun
-        const sunPos = [50,60,250]
-        const sunScale = 15
-        // Blender's exported default rotation was not ideal
-        const sunRotateX = degrees_to_radians(180)
-        const sunRotateY = degrees_to_radians(90)
-        const sunRotateZ = degrees_to_radians(180)
-        
         // Order matters -- scale, rotate, transform
         model = m4_multiply(m4_scaling(sunScale, sunScale, sunScale), model)
         model = m4_multiply(m4_z_rotation(sunRotateZ), model)
