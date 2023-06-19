@@ -215,14 +215,11 @@ const main = async () => {
     const up = [0, 1, 0]
     const camera = m4_look_at(cameraPosition, cameraTarget, up)
 
-    let world = m4_identity()
-
     const model = m4_identity()
     const view = m4_inverse(camera)
-    const projection = m4_perspective(fov, aspect, zNear, zFar)
+
     gl.uniformMatrix4fv(uModelLoc, false, model)
     gl.uniformMatrix4fv(uViewLoc, false, view)
-    gl.uniformMatrix4fv(uProjectionLoc, false, projection)
 
     const draw = frameTime => {
         // Handle resize
@@ -234,8 +231,10 @@ const main = async () => {
             gl.viewport(0, 0, gl.canvas.width, gl.canvas.height)
         }
 
-        world = m4_y_rotation(degrees_to_radians((frameTime * 0.025) % 360))
+        const world = m4_y_rotation(degrees_to_radians((frameTime * 0.025) % 360))
+        const projection = m4_perspective(fov, aspect, zNear, zFar)
         gl.uniformMatrix4fv(uWorldLoc, false, world)
+        gl.uniformMatrix4fv(uProjectionLoc, false, projection)
 
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 
