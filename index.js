@@ -1,4 +1,4 @@
-import { degrees_to_radians, m4_perspective, m4_look_at, m4_inverse, m4_y_rotation, m4_identity, m4_translation } from './pkg'
+import { degrees_to_radians, m4_perspective, m4_look_at, m4_inverse, m4_y_rotation, m4_z_rotation, m4_identity, m4_translation, m4_scaling, m4_multiply, m4_x_rotation } from './pkg'
 
 import objLoader from './src/objLoader'
 import { createShader, createProgram } from './src/shaderFunctions'
@@ -204,8 +204,8 @@ const main = async () => {
     const sceneMesh = await objLoader('./models', 'scene')
     const sceneMeshData = newMeshDataArray(sceneMesh)
 
-    // const sunMesh = await objLoader('./models', 'sun')
-    // const sunMeshData = newMeshDataArray(sunMesh)
+    const sunMesh = await objLoader('./models', 'sun')
+    const sunMeshData = newMeshDataArray(sunMesh)
 
     let isInitialSetSize = true
 
@@ -218,10 +218,8 @@ const main = async () => {
     const up = [0, 1, 0]
     const camera = m4_look_at(cameraPosition, cameraTarget, up)
 
-    const model = m4_identity()
     const view = m4_inverse(camera)
 
-    gl.uniformMatrix4fv(uModelLoc, false, model)
     gl.uniformMatrix4fv(uViewLoc, false, view)
 
     const draw = frameTime => {
@@ -256,9 +254,29 @@ const main = async () => {
             gl.drawArrays(gl.TRIANGLES, 0, data.faces)
         }
 
+        // Scene
+        let model = m4_identity()
+        gl.uniformMatrix4fv(uModelLoc, false, model)
         sceneMeshData.forEach(drawMesh)
 
-        // sunMesh.forEach()
+        // Sun
+        const sunPos = [50,60,250]
+        const sunScale = 15
+        // Blender's exported default rotation was not ideal
+        const sunRotateX = degrees_to_radians(180)
+        const sunRotateY = degrees_to_radians(90)
+        const sunRotateZ = degrees_to_radians(180)
+        
+        // Order matters -- scale, rotate, transform
+        model = m4_multiply(m4_scaling(sunScale, sunScale, sunScale), model)
+        model = m4_multiply(m4_z_rotation(sunRotateZ), model)
+        model = m4_multiply(m4_y_rotation(sunRotateY), model)
+        model = m4_multiply(m4_x_rotation(sunRotateX), model)
+        model = m4_multiply(m4_look_at(sunPos, [0.0, 0.0, 0.0], up), model)
+        model = m4_multiply(m4_translation(sunPos[0], sunPos[1], sunPos[2]), model)
+
+        gl.uniformMatrix4fv(uModelLoc, false, model)
+        sunMeshData.forEach(drawMesh)
 
         gl.drawArrays(gl.POINTS, 0, 1)
 

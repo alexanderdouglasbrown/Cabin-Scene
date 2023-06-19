@@ -35,6 +35,11 @@ pub fn normalize(v: Float64Array) -> Float64Array {
 }
 
 #[wasm_bindgen]
+pub fn dot(a: Float64Array, b: Float64Array) -> f64 {
+    a.get_index(0) * b.get_index(0) + a.get_index(1) * b.get_index(1) + a.get_index(2) * b.get_index(2)
+}
+
+#[wasm_bindgen]
 pub fn subtract_vectors(a: Float64Array, b: Float64Array) -> Float64Array {
     let arr = [a.get_index(0) - b.get_index(0), a.get_index(1) - b.get_index(1), a.get_index(2) - b.get_index(2)];
     Float64Array::from(&arr[..])
@@ -283,8 +288,8 @@ pub fn m4_perspective(fov: f64, aspect: f64, near: f64, far: f64) -> Float64Arra
 }
 
 #[wasm_bindgen]
-pub fn m4_look_at(camera_pos: Float64Array, camera_target: Float64Array, up: Float64Array) -> Float64Array {
-    let z_axis = normalize(subtract_vectors(Float64Array::clone(&camera_pos), camera_target));
+pub fn m4_look_at(pos: Float64Array, target: Float64Array, up: Float64Array) -> Float64Array {
+    let z_axis = normalize(subtract_vectors(Float64Array::clone(&pos), target));
     let x_axis = normalize(cross(up, Float64Array::clone(&z_axis)));
     let y_axis = normalize(cross(Float64Array::clone(&z_axis), Float64Array::clone(&x_axis)));
 
@@ -292,7 +297,7 @@ pub fn m4_look_at(camera_pos: Float64Array, camera_target: Float64Array, up: Flo
         x_axis.get_index(0), x_axis.get_index(1), x_axis.get_index(2), 0.0,
         y_axis.get_index(0), y_axis.get_index(1), y_axis.get_index(2), 0.0,
         z_axis.get_index(0), z_axis.get_index(1), z_axis.get_index(2), 0.0,
-        camera_pos.get_index(0), camera_pos.get_index(1), camera_pos.get_index(2), 1.0
+        pos.get_index(0), pos.get_index(1), pos.get_index(2), 1.0
     ];
     Float64Array::from(&arr[..])
 }
