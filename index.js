@@ -13,15 +13,18 @@ uniform mat4 u_model;
 uniform mat4 u_world;
 uniform mat4 u_view;
 uniform mat4 u_projection;
+uniform mat4 u_textureMatrix;
 
 out vec3 v_normal;
 out vec2 v_textureCoord;
+out vec4 v_projectedTextureCoord;
 
 void main() {
     gl_Position = u_projection * u_view * u_world * u_model * a_position;
 
     v_normal = normalize(a_normal);
     v_textureCoord = a_textureCoord;
+    v_projectedTextureCoord = u_textureMatrix * u_world * a_position;
 }
 `
 
@@ -30,17 +33,32 @@ precision highp float;
 
 in vec3 v_normal;
 in vec2 v_textureCoord;
+in vec4 v_projectedTextureCoord;
 
 uniform vec3 u_lightDirection; // normalized
 
 uniform sampler2D u_diffuseMap;
+uniform sampler2D u_projectedTexture;
+
 uniform vec3 u_diffuse;
 uniform float u_opacity;
 
 out vec4 outColor;
 
 void main() {
-    float light = max(dot(v_normal, u_lightDirection) * 0.5 + 0.75, 0.0);
+    // float light = max(dot(v_normal, u_lightDirection) * 0.5 + 0.75, 0.0);
+
+    vec3 projectedTextureCoord = v_projectedTextureCoord.xyz / v_projectedTextureCoord.w;
+    float currentDepth = projectedTextureCoord.z;
+
+    bool inRange =
+        projectedTextureCoord.x >= 0.0 &&
+        projectedTextureCoord.x <= 1.0 &&
+        projectedTextureCoord.y >= 0.0 &&
+        projectedTextureCoord.y <= 1.0;
+
+    float projectedDepth = texture(u_projectedTexture, projectedTextureCoord.xy).r;
+    float shadowLight = (inRange && projectedDepth <= currentDepth) ? 0.0 : 1.0;
 
     vec4 diffuseMapColor = texture(u_diffuseMap, v_textureCoord);
 
@@ -48,9 +66,34 @@ void main() {
     float finalOpacity = u_opacity * diffuseMapColor.a;
 
     outColor = vec4(
-        finalDiffuse * light,
+        // finalDiffuse * light,
+        finalDiffuse * shadowLight,
         finalOpacity
     );
+}
+`
+
+const shadowVertexShaderGLSL = `#version 300 es
+in vec4 a_position;
+
+uniform mat4 u_projection;
+uniform mat4 u_view;
+uniform mat4 u_world;
+
+void main() {
+    gl_Position = u_projection * u_view * u_world * a_position;
+}
+`
+
+const shadowFragmentShaderGLSL = `#version 300 es
+precision highp float;
+
+uniform vec4 u_color;
+
+out vec4 outColor;
+
+void main() {
+    outColor = u_color;
 }
 `
 
@@ -97,14 +140,14 @@ const main = async () => {
     gl.enable(gl.BLEND)
     gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
     gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true)
-    gl.clearColor(0.6, 0.74, 0.95, 1.0)
+    gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
 
     const loadingImagesSet = new Set()
 
+    // Scene shaders
     const vertexShader = createShader(gl, gl.VERTEX_SHADER, vertexShaderGLSL)
     const fragmentShader = createShader(gl, gl.FRAGMENT_SHADER, fragmentShaderGLSL)
     const program = createProgram(gl, vertexShader, fragmentShader)
-    gl.useProgram(program)
 
     const aPositionLoc = gl.getAttribLocation(program, "a_position")
     const aNormalLoc = gl.getAttribLocation(program, "a_normal")
@@ -114,6 +157,7 @@ const main = async () => {
     const uWorldLoc = gl.getUniformLocation(program, "u_world")
     const uViewLoc = gl.getUniformLocation(program, "u_view")
     const uProjectionLoc = gl.getUniformLocation(program, "u_projection")
+    const uTextureMatrixLoc = gl.getUniformLocation(program, "u_textureMatrix")
 
     const uLightDirectionLoc = gl.getUniformLocation(program, "u_lightDirection")
     const uDiffuseLoc = gl.getUniformLocation(program, "u_diffuse")
@@ -121,12 +165,24 @@ const main = async () => {
     // const uEmissiveLoc = gl.getUniformLocation(program, "u_emissive")
     const uOpacityLoc = gl.getUniformLocation(program, "u_opacity")
 
-    const newMeshDataArray = parsedObjs => {
+    // Shadow shader
+    const shadowVertexShader = createShader(gl, gl.VERTEX_SHADER, shadowVertexShaderGLSL)
+    const shadowFragmentShader = createShader(gl, gl.FRAGMENT_SHADER, shadowFragmentShaderGLSL)
+    const shadowProgram = createProgram(gl, shadowVertexShader, shadowFragmentShader)
+
+    const aShadowPositionLoc = gl.getAttribLocation(shadowProgram, "a_position")
+    const uShadowWorldLoc = gl.getUniformLocation(shadowProgram, "u_world")
+    const uShadowViewLoc = gl.getUniformLocation(shadowProgram, "u_view")
+    const uShadownProjectionLoc = gl.getUniformLocation(shadowProgram, "u_projection")
+    const uShadowColorLoc = gl.getUniformLocation(shadowProgram, "u_color")
+
+    const newMeshDataArray = (parsedObjs) => {
         const newMeshData = () => ({
             objName: undefined,
             vao: undefined,
             faces: 0,
             material: undefined,
+            shadowPosBuffer: undefined,
             posBuffer: undefined,
             normalBuffer: undefined,
             textureCoordBuffer: undefined,
@@ -179,6 +235,17 @@ const main = async () => {
                 gl.bindBuffer(gl.ARRAY_BUFFER, data.textureCoordBuffer)
                 gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(mesh.textureCoords), gl.STATIC_DRAW)
 
+                // Shadow junk. Do better.
+                data.shadowVAO = gl.createVertexArray()
+                gl.bindVertexArray(data.shadowVAO)
+
+                gl.bindBuffer(gl.ARRAY_BUFFER, data.posBuffer)
+                gl.vertexAttribPointer(aShadowPositionLoc, 3, gl.FLOAT, false, 0, 0)
+                gl.enableVertexAttribArray(aShadowPositionLoc)
+
+                gl.bindVertexArray(null)
+                //
+
                 data.vao = gl.createVertexArray()
                 gl.bindVertexArray(data.vao)
 
@@ -213,7 +280,20 @@ const main = async () => {
     const sunMesh = await objLoader('./models', 'sun')
     const sunMeshData = newMeshDataArray(sunMesh)
 
-    const sunPos = [50, 60, 250]
+    // Shadow stuff
+    const depthTexture = gl.createTexture()
+    const depthTextureSize = 2048
+    gl.bindTexture(gl.TEXTURE_2D, depthTexture)
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.DEPTH_COMPONENT32F, depthTextureSize, depthTextureSize, 0, gl.DEPTH_COMPONENT, gl.FLOAT, null)
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST)
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST)
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
+
+    const depthFramebuffer = gl.createFramebuffer()
+
+    //////
+    const sunPos = [25, 30, 50]
     const sunScale = 15
     // Blender's exported default rotation was not ideal
     const sunRotateX = degrees_to_radians(180)
@@ -233,6 +313,8 @@ const main = async () => {
 
     const view = m4_inverse(camera)
 
+    gl.useProgram(program)
+    // gl.uniformMatrix4fv(uViewLoc, false, view)
     gl.uniformMatrix4fv(uViewLoc, false, view)
 
     const draw = frameTime => {
@@ -242,18 +324,58 @@ const main = async () => {
             gl.canvas.height = targetCanvasHeight
             aspect = canvas.clientWidth / canvas.clientHeight
             isInitialSetSize = false
-            gl.viewport(0, 0, gl.canvas.width, gl.canvas.height)
         }
-
+        const projection = m4_perspective(fov, aspect, zNear, zFar)
+        // const world = m4_identity()
         const world = m4_y_rotation(degrees_to_radians((frameTime * 0.025) % 360))
         // const world = m4_y_rotation(degrees_to_radians(180))
-        const projection = m4_perspective(fov, aspect, zNear, zFar)
+        gl.clearColor(0.0, 0.0, 0.0, 1.0)
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
+
+        // Shadow
+        gl.useProgram(shadowProgram)
+        const shadowView = m4_inverse(m4_look_at(sunPos, cameraTarget, up))
+        gl.uniformMatrix4fv(uShadowWorldLoc, false, world)
+        gl.uniformMatrix4fv(uShadowViewLoc, false, shadowView)
+        gl.uniformMatrix4fv(uShadownProjectionLoc, false, m4_perspective(fov, 1, zNear, zFar))
+        gl.uniform4fv(uShadowColorLoc, [1, 1, 1, 1])
+
+        gl.bindFramebuffer(gl.FRAMEBUFFER, depthFramebuffer)
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.TEXTURE_2D, depthTexture, 0)
+        gl.viewport(0, 0, depthTextureSize, depthTextureSize)
+
+        sceneMeshData.forEach(data => {
+            if (data.objName !== "Water" & data.objName !== "Clouds") {
+                gl.bindVertexArray(data.shadowVAO)
+
+                gl.drawArrays(gl.TRIANGLES, 0, data.faces)
+            }
+        })
+
+        //Scene
+        gl.useProgram(program)
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        gl.viewport(0, 0, gl.canvas.width, gl.canvas.height)
+        gl.clearColor(0.6, 0.74, 0.95, 1.0)
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
+
         gl.uniformMatrix4fv(uWorldLoc, false, world)
         gl.uniformMatrix4fv(uProjectionLoc, false, projection)
 
         gl.uniform3fv(uLightDirectionLoc, normalize(sunPos))
 
-        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
+        const textureMatrixScale = 0.5
+        const textureMatrixOffset = 2
+
+        let textureMatrix = m4_identity()
+        textureMatrix = m4_multiply(m4_translation(textureMatrixOffset, textureMatrixOffset, textureMatrixOffset), textureMatrix)
+        textureMatrix = m4_multiply(m4_scaling(textureMatrixScale, textureMatrixScale, textureMatrixScale), textureMatrix)
+
+        textureMatrix = m4_multiply(textureMatrix, projection)
+        textureMatrix = m4_multiply(textureMatrix, shadowView)
+        // textureMatrix = m4_multiply(textureMatrix, world)
+
+        gl.uniformMatrix4fv(uTextureMatrixLoc, false, textureMatrix)
 
         const drawMesh = data => {
             gl.bindVertexArray(data.vao)
@@ -270,7 +392,6 @@ const main = async () => {
             gl.drawArrays(gl.TRIANGLES, 0, data.faces)
         }
 
-        // Scene
         let model = m4_identity()
         gl.uniformMatrix4fv(uModelLoc, false, model)
         sceneMeshData.forEach(drawMesh)
