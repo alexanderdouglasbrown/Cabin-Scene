@@ -61,13 +61,12 @@ void main() {
     float shadowLight = (inRange && projectedDepth <= currentDepth) ? 0.0 : 1.0;
 
     vec4 diffuseMapColor = texture(u_diffuseMap, v_textureCoord);
-    vec4 projectedTexture = texture(u_projectedTexture, v_textureCoord);
 
     vec3 finalDiffuse = u_diffuse * diffuseMapColor.rgb;
     float finalOpacity = u_opacity * diffuseMapColor.a;
 
     outColor = vec4(
-        inRange ? projectedTexture.rgb * 0.3 : finalDiffuse.rgb,
+        finalDiffuse * shadowLight,
         finalOpacity
     );
 }
@@ -159,6 +158,8 @@ const main = async () => {
     const uProjectionLoc = gl.getUniformLocation(program, "u_projection")
     const uTextureMatrixLoc = gl.getUniformLocation(program, "u_textureMatrix")
 
+    const uDiffuseMapLoc = gl.getUniformLocation(program, "u_diffuseMap")
+    const uProjectedTextureLoc = gl.getUniformLocation(program, "u_projectedTexture")
     const uLightDirectionLoc = gl.getUniformLocation(program, "u_lightDirection")
     const uDiffuseLoc = gl.getUniformLocation(program, "u_diffuse")
     // const uAmbientLoc = gl.getUniformLocation(program, "u_ambient")
@@ -289,12 +290,13 @@ const main = async () => {
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST)
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
-
     const depthFramebuffer = gl.createFramebuffer()
+    gl.bindFramebuffer(gl.FRAMEBUFFER, depthFramebuffer)
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.TEXTURE_2D, depthTexture, 0)
 
     //////
-    const sunPos = [25, 30, 50]
-    const sunScale = 15
+    const sunPos = [8,4,2]
+    const sunScale = 1
     // Blender's exported default rotation was not ideal
     const sunRotateX = degrees_to_radians(180)
     const sunRotateY = degrees_to_radians(90)
@@ -326,23 +328,22 @@ const main = async () => {
             isInitialSetSize = false
         }
         const projection = m4_perspective(fov, aspect, zNear, zFar)
-        const world = m4_identity()
-        // const world = m4_y_rotation(degrees_to_radians((frameTime * 0.025) % 360))
+        // const world = m4_identity()
+        const world = m4_y_rotation(degrees_to_radians((frameTime * 0.025) % 360))
         // const world = m4_y_rotation(degrees_to_radians(180))
-        gl.clearColor(0.0, 0.0, 0.0, 1.0)
-        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
+
 
         // Shadow
         gl.useProgram(shadowProgram)
         const shadowView = m4_inverse(m4_look_at(sunPos, cameraTarget, up))
         gl.uniformMatrix4fv(uShadowWorldLoc, false, world)
         gl.uniformMatrix4fv(uShadowViewLoc, false, shadowView)
-        gl.uniformMatrix4fv(uShadownProjectionLoc, false, m4_perspective(fov, 1, zNear, zFar))
+        gl.uniformMatrix4fv(uShadownProjectionLoc, false, m4_perspective(degrees_to_radians(200), 1, zNear, zFar))
         gl.uniform4fv(uShadowColorLoc, [1, 1, 1, 1])
 
         gl.bindFramebuffer(gl.FRAMEBUFFER, depthFramebuffer)
-        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.TEXTURE_2D, depthTexture, 0)
         gl.viewport(0, 0, depthTextureSize, depthTextureSize)
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 
         sceneMeshData.forEach(data => {
             if (data.objName !== "Clouds") {
@@ -363,17 +364,19 @@ const main = async () => {
         gl.uniformMatrix4fv(uProjectionLoc, false, projection)
 
         gl.uniform3fv(uLightDirectionLoc, normalize(sunPos))
+        gl.uniform1i(uDiffuseMapLoc, 0)
+        gl.uniform1i(uProjectedTextureLoc, 1)
 
-        const textureMatrixScale = 10
-        const textureMatrixOffset = 0.13
+        const textureMatrixScale = 0.667
+        const textureMatrixOffset = .8
 
         let textureMatrix = m4_identity()
-        textureMatrix = m4_multiply(m4_translation(textureMatrixOffset, textureMatrixOffset, textureMatrixOffset), textureMatrix)
-        textureMatrix = m4_multiply(m4_scaling(textureMatrixScale, textureMatrixScale, textureMatrixScale), textureMatrix)
+        // textureMatrix = m4_multiply(m4_translation(textureMatrixOffset, textureMatrixOffset, textureMatrixOffset), textureMatrix)
+        // textureMatrix = m4_multiply(m4_scaling(textureMatrixScale, textureMatrixScale, textureMatrixScale), textureMatrix)
 
         textureMatrix = m4_multiply(textureMatrix, projection)
         textureMatrix = m4_multiply(textureMatrix, shadowView)
-        // textureMatrix = m4_multiply(textureMatrix, world)
+        textureMatrix = m4_multiply(textureMatrix, m4_inverse(world))
 
         gl.uniformMatrix4fv(uTextureMatrixLoc, false, textureMatrix)
 
@@ -387,7 +390,10 @@ const main = async () => {
             // gl.uniform1f(uShininessLoc, data.material.shininess)
             gl.uniform1f(uOpacityLoc, data.material.opacity)
 
+            gl.activeTexture(gl.TEXTURE0)
             gl.bindTexture(gl.TEXTURE_2D, data.texture)
+            gl.activeTexture(gl.TEXTURE1)
+            gl.bindTexture(gl.TEXTURE_2D, depthTexture)
 
             gl.drawArrays(gl.TRIANGLES, 0, data.faces)
         }
