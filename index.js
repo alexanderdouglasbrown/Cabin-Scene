@@ -61,13 +61,13 @@ void main() {
     float shadowLight = (inRange && projectedDepth <= currentDepth) ? 0.0 : 1.0;
 
     vec4 diffuseMapColor = texture(u_diffuseMap, v_textureCoord);
+    vec4 projectedTexture = texture(u_projectedTexture, v_textureCoord);
 
     vec3 finalDiffuse = u_diffuse * diffuseMapColor.rgb;
     float finalOpacity = u_opacity * diffuseMapColor.a;
 
     outColor = vec4(
-        // finalDiffuse * light,
-        finalDiffuse * shadowLight,
+        inRange ? projectedTexture.rgb * 0.3 : finalDiffuse.rgb,
         finalOpacity
     );
 }
@@ -326,8 +326,8 @@ const main = async () => {
             isInitialSetSize = false
         }
         const projection = m4_perspective(fov, aspect, zNear, zFar)
-        // const world = m4_identity()
-        const world = m4_y_rotation(degrees_to_radians((frameTime * 0.025) % 360))
+        const world = m4_identity()
+        // const world = m4_y_rotation(degrees_to_radians((frameTime * 0.025) % 360))
         // const world = m4_y_rotation(degrees_to_radians(180))
         gl.clearColor(0.0, 0.0, 0.0, 1.0)
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
@@ -345,7 +345,7 @@ const main = async () => {
         gl.viewport(0, 0, depthTextureSize, depthTextureSize)
 
         sceneMeshData.forEach(data => {
-            if (data.objName !== "Water" & data.objName !== "Clouds") {
+            if (data.objName !== "Clouds") {
                 gl.bindVertexArray(data.shadowVAO)
 
                 gl.drawArrays(gl.TRIANGLES, 0, data.faces)
@@ -364,8 +364,8 @@ const main = async () => {
 
         gl.uniform3fv(uLightDirectionLoc, normalize(sunPos))
 
-        const textureMatrixScale = 0.5
-        const textureMatrixOffset = 2
+        const textureMatrixScale = 10
+        const textureMatrixOffset = 0.13
 
         let textureMatrix = m4_identity()
         textureMatrix = m4_multiply(m4_translation(textureMatrixOffset, textureMatrixOffset, textureMatrixOffset), textureMatrix)
