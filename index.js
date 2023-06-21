@@ -109,6 +109,47 @@ const main = async () => {
         return
     }
 
+    // Mouse watching
+    let mouseX = null
+    let mouseY = null
+    let isMouseDown = false
+    let cameraDistance = 25 // Guess I need to do this here
+    gl.canvas.addEventListener('mousedown', e => {
+        isMouseDown = true
+    })
+    gl.canvas.addEventListener('mouseup', e => {
+        isMouseDown = false
+        mouseX = null
+        mouseY = null
+    })
+    gl.canvas.addEventListener('mousemove', e => {
+        const rect = canvas.getBoundingClientRect()
+        mouseX = ((e.clientX - rect.left) / gl.canvas.clientWidth)
+        mouseY = ((e.clientY - rect.top) / gl.canvas.clientHeight)
+    })
+    gl.canvas.addEventListener('touchstart', e => {
+        isMouseDown = true
+    })
+    gl.canvas.addEventListener('touchend', e => {
+        isMouseDown = false
+        mouseX = null
+        mouseY = null
+    })
+    gl.canvas.addEventListener('touchmove', e => {
+        e.preventDefault()
+
+        const rect = canvas.getBoundingClientRect()
+        mouseX = ((e.touches[0].clientX - rect.left) / gl.canvas.clientWidth)
+        mouseY = ((e.touches[0].clientY - rect.top) / gl.canvas.clientHeight)
+    })
+    gl.canvas.addEventListener('wheel', e => {
+        cameraDistance += e.deltaY * 0.01
+        if (cameraDistance > 50)
+            cameraDistance = 50
+        if (cameraDistance < 5)
+            cameraDistance = 5
+    })
+
     // Resize stuff
     let aspect = canvas.clientWidth / canvas.clientHeight
     let targetCanvasWidth = gl.canvas.width
@@ -295,7 +336,7 @@ const main = async () => {
     gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.TEXTURE_2D, depthTexture, 0)
 
     //////
-    const sunPos = [7,17,1]
+    const sunPos = [7, 17, 1]
     const sunScale = 1
     // Blender's exported default rotation was not ideal
     const sunRotateX = degrees_to_radians(180)
@@ -309,14 +350,15 @@ const main = async () => {
     const fov = degrees_to_radians(75)
 
     const cameraTarget = [0, 0, 0]
-    const cameraPosition = [0, 7, 25]
     const up = [0, 1, 0]
-    const camera = m4_look_at(cameraPosition, cameraTarget, up)
-
-    const view = m4_inverse(camera)
 
     gl.useProgram(program)
-    gl.uniformMatrix4fv(uViewLoc, false, view)
+
+
+    let cameraRotationX = 0
+    let cameraRotationY = 0
+    let lastMouseX = null
+    let lastMouseY = null
 
     const draw = frameTime => {
         // Handle resize
@@ -326,9 +368,35 @@ const main = async () => {
             aspect = canvas.clientWidth / canvas.clientHeight
             isInitialSetSize = false
         }
+
+        // Mouse
+        if (isMouseDown) {
+            const xFactor = gl.canvas.clientWidth * 0.2
+            const yFactor = gl.canvas.clientHeight * 0.2
+            if (lastMouseX != null) {
+                cameraRotationX += (mouseY - lastMouseY) * yFactor
+                cameraRotationY += (mouseX - lastMouseX) * xFactor
+
+                if (cameraRotationX < -25)
+                    cameraRotationX = -25
+                if (cameraRotationX > 25)
+                    cameraRotationX = 25
+            }
+
+            lastMouseX = mouseX
+            lastMouseY = mouseY
+        } else {
+            lastMouseX = null
+            lastMouseY = null
+        }
+
+        const cameraPosition = [cameraDistance, cameraDistance, cameraDistance]
+        const camera = m4_look_at(cameraPosition, cameraTarget, up)
+        const view = m4_inverse(camera)
+
         const projection = m4_perspective(fov, aspect, zNear, zFar)
-        const world = m4_y_rotation(degrees_to_radians((frameTime * -0.025) % 360))
-        // const world = m4_y_rotation(degrees_to_radians(220))
+        const updown = m4_multiply(m4_x_rotation(degrees_to_radians(cameraRotationX)), m4_z_rotation(degrees_to_radians(-cameraRotationX))) // Is this correct?
+        const world = m4_multiply(updown, m4_y_rotation(degrees_to_radians(cameraRotationY)))
 
 
         // Shadow
@@ -364,6 +432,7 @@ const main = async () => {
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 
         gl.uniformMatrix4fv(uWorldLoc, false, world)
+        gl.uniformMatrix4fv(uViewLoc, false, view)
         gl.uniformMatrix4fv(uProjectionLoc, false, projection)
 
         gl.uniform3fv(uLightDirectionLoc, normalize(sunPos))
