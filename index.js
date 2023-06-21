@@ -49,13 +49,15 @@ void main() {
     float light = max(dot(v_normal, u_lightDirection) * 0.5 + 0.75, 0.0);
 
     vec3 projectedTextureCoord = v_projectedTextureCoord.xyz / v_projectedTextureCoord.w;
-    float currentDepth = projectedTextureCoord.z;
+    float currentDepth = projectedTextureCoord.z - 0.001;
 
     bool inRange =
         projectedTextureCoord.x >= 0.0 &&
         projectedTextureCoord.x <= 1.0 &&
         projectedTextureCoord.y >= 0.0 &&
-        projectedTextureCoord.y <= 1.0;
+        projectedTextureCoord.y <= 1.0 &&
+        projectedTextureCoord.z >= 0.0 &&
+        projectedTextureCoord.z <= 1.0;
 
     float projectedDepth = texture(u_projectedTexture, projectedTextureCoord.xy).r;
     float shadow = (inRange && projectedDepth <= currentDepth) ? 0.5 : 1.0;
@@ -324,7 +326,7 @@ const main = async () => {
 
     // Shadow stuff
     const depthTexture = gl.createTexture()
-    const depthTextureSize = 1024
+    const depthTextureSize = 4096
     gl.bindTexture(gl.TEXTURE_2D, depthTexture)
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.DEPTH_COMPONENT32F, depthTextureSize, depthTextureSize, 0, gl.DEPTH_COMPONENT, gl.FLOAT, null)
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST)
@@ -447,12 +449,9 @@ const main = async () => {
         gl.uniform1i(uDiffuseMapLoc, 0)
         gl.uniform1i(uProjectedTextureLoc, 1)
 
-        // const textureMatrixScale = 0.999
-        // const textureMatrixOffset = 0.01
-
         let textureMatrix = m4_identity()
-        // textureMatrix = m4_multiply(textureMatrix, m4_translation(textureMatrixOffset, textureMatrixOffset, textureMatrixOffset))
-        // textureMatrix = m4_multiply(textureMatrix, m4_scaling(textureMatrixScale, textureMatrixScale, textureMatrixScale))
+        textureMatrix = m4_multiply(textureMatrix, m4_translation(0.5, 0.5, 0.5))
+        textureMatrix = m4_multiply(textureMatrix, m4_scaling(0.5, 0.5, 0.5))
 
         textureMatrix = m4_multiply(textureMatrix, shadowProjection)
         textureMatrix = m4_multiply(textureMatrix, shadowView)
