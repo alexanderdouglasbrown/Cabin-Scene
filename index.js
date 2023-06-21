@@ -46,7 +46,7 @@ uniform float u_opacity;
 out vec4 outColor;
 
 void main() {
-    // float light = max(dot(v_normal, u_lightDirection) * 0.5 + 0.75, 0.0);
+    float light = max(dot(v_normal, u_lightDirection) * 0.5 + 0.75, 0.0);
 
     vec3 projectedTextureCoord = v_projectedTextureCoord.xyz / v_projectedTextureCoord.w;
     float currentDepth = projectedTextureCoord.z;
@@ -58,7 +58,7 @@ void main() {
         projectedTextureCoord.y <= 1.0;
 
     float projectedDepth = texture(u_projectedTexture, projectedTextureCoord.xy).r;
-    float shadowLight = (inRange && projectedDepth <= currentDepth) ? 0.0 : 1.0;
+    float shadow = (inRange && projectedDepth <= currentDepth) ? 0.5 : 1.0;
 
     vec4 diffuseMapColor = texture(u_diffuseMap, v_textureCoord);
 
@@ -66,7 +66,7 @@ void main() {
     float finalOpacity = u_opacity * diffuseMapColor.a;
 
     outColor = vec4(
-        finalDiffuse * shadowLight,
+        finalDiffuse * light * shadow,
         finalOpacity
     );
 }
@@ -283,7 +283,7 @@ const main = async () => {
 
     // Shadow stuff
     const depthTexture = gl.createTexture()
-    const depthTextureSize = 2048
+    const depthTextureSize = 1024
     gl.bindTexture(gl.TEXTURE_2D, depthTexture)
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.DEPTH_COMPONENT32F, depthTextureSize, depthTextureSize, 0, gl.DEPTH_COMPONENT, gl.FLOAT, null)
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST)
@@ -295,7 +295,7 @@ const main = async () => {
     gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.TEXTURE_2D, depthTexture, 0)
 
     //////
-    const sunPos = [8,4,2]
+    const sunPos = [7,17,1]
     const sunScale = 1
     // Blender's exported default rotation was not ideal
     const sunRotateX = degrees_to_radians(180)
@@ -316,7 +316,6 @@ const main = async () => {
     const view = m4_inverse(camera)
 
     gl.useProgram(program)
-    // gl.uniformMatrix4fv(uViewLoc, false, view)
     gl.uniformMatrix4fv(uViewLoc, false, view)
 
     const draw = frameTime => {
@@ -328,19 +327,23 @@ const main = async () => {
             isInitialSetSize = false
         }
         const projection = m4_perspective(fov, aspect, zNear, zFar)
-        // const world = m4_identity()
-        const world = m4_y_rotation(degrees_to_radians((frameTime * 0.025) % 360))
-        // const world = m4_y_rotation(degrees_to_radians(180))
+        const world = m4_y_rotation(degrees_to_radians((frameTime * -0.025) % 360))
+        // const world = m4_y_rotation(degrees_to_radians(220))
 
 
         // Shadow
         gl.useProgram(shadowProgram)
+        const shadowWorld = m4_identity()
         const shadowView = m4_inverse(m4_look_at(sunPos, cameraTarget, up))
-        gl.uniformMatrix4fv(uShadowWorldLoc, false, world)
+        const shadowProjection = m4_perspective(degrees_to_radians(120), 1, zNear, zFar)
+        gl.uniformMatrix4fv(uShadowWorldLoc, false, shadowWorld)
         gl.uniformMatrix4fv(uShadowViewLoc, false, shadowView)
-        gl.uniformMatrix4fv(uShadownProjectionLoc, false, m4_perspective(degrees_to_radians(200), 1, zNear, zFar))
+        gl.uniformMatrix4fv(uShadownProjectionLoc, false, shadowProjection)
         gl.uniform4fv(uShadowColorLoc, [1, 1, 1, 1])
 
+        // gl.bindFramebuffer(gl.FRAMEBUFFER, null)
+        // gl.canvas.width = depthTextureSize
+        // gl.canvas.height = depthTextureSize
         gl.bindFramebuffer(gl.FRAMEBUFFER, depthFramebuffer)
         gl.viewport(0, 0, depthTextureSize, depthTextureSize)
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
@@ -367,14 +370,14 @@ const main = async () => {
         gl.uniform1i(uDiffuseMapLoc, 0)
         gl.uniform1i(uProjectedTextureLoc, 1)
 
-        const textureMatrixScale = 0.667
-        const textureMatrixOffset = .8
+        // const textureMatrixScale = 0.999
+        // const textureMatrixOffset = 0.01
 
         let textureMatrix = m4_identity()
-        // textureMatrix = m4_multiply(m4_translation(textureMatrixOffset, textureMatrixOffset, textureMatrixOffset), textureMatrix)
-        // textureMatrix = m4_multiply(m4_scaling(textureMatrixScale, textureMatrixScale, textureMatrixScale), textureMatrix)
+        // textureMatrix = m4_multiply(textureMatrix, m4_translation(textureMatrixOffset, textureMatrixOffset, textureMatrixOffset))
+        // textureMatrix = m4_multiply(textureMatrix, m4_scaling(textureMatrixScale, textureMatrixScale, textureMatrixScale))
 
-        textureMatrix = m4_multiply(textureMatrix, projection)
+        textureMatrix = m4_multiply(textureMatrix, shadowProjection)
         textureMatrix = m4_multiply(textureMatrix, shadowView)
         textureMatrix = m4_multiply(textureMatrix, m4_inverse(world))
 

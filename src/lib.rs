@@ -160,8 +160,10 @@ pub fn m4_inverse(m: Float64Array) -> Float64Array{
     let t1 = (tmp_1 * m01 + tmp_6 * m21 + tmp_9 * m31) - (tmp_0 * m01 + tmp_7 * m21 + tmp_8 * m31);
     let t2 = (tmp_2 * m01 + tmp_7 * m11 + tmp_10 * m31) - (tmp_3 * m01 + tmp_6 * m11 + tmp_11 * m31);
     let t3 = (tmp_5 * m01 + tmp_8 * m11 + tmp_11 * m21) - (tmp_4 * m01 + tmp_9 * m11 + tmp_10 * m21);
-    
-    let d = 1.0 / (m00 * t0 + m10 * t1 + m20 * t2 + m30 * t3);
+
+    let mut divisor = (m00 * t0 + m10 * t1 + m20 * t2 + m30 * t3);
+    divisor = if divisor == 0.0 { 0.0001 } else { divisor };
+    let d =  1.0 / divisor;
 
     let arr = [
         d * t0,
