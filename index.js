@@ -336,7 +336,7 @@ const main = async () => {
     gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.TEXTURE_2D, depthTexture, 0)
 
     //////
-    const sunPos = [7, 17, 1]
+    // const sunPos = [7, 17, 1]
     const sunScale = 1
     // Blender's exported default rotation was not ideal
     const sunRotateX = degrees_to_radians(180)
@@ -360,6 +360,12 @@ const main = async () => {
     let lastMouseX = null
     let lastMouseY = null
 
+    const xSlider = document.querySelector("#x-slider")
+    const ySlider = document.querySelector("#y-slider")
+    const zSlider = document.querySelector("#z-slider")
+
+    console.log(xSlider.value)
+
     const draw = frameTime => {
         // Handle resize
         if (isInitialSetSize || canvas.clientWidth !== targetCanvasWidth || canvas.clientHeight !== targetCanvasHeight) {
@@ -368,6 +374,8 @@ const main = async () => {
             aspect = canvas.clientWidth / canvas.clientHeight
             isInitialSetSize = false
         }
+
+        let sunPos = [xSlider.value, ySlider.value, zSlider.value]
 
         // Mouse
         if (isMouseDown) {

@@ -23,3 +23,12 @@ canvas {
     text-shadow: 1px 1px MidnightBlue;
     white-space: pre;
 }
+
+#sliders {
+    background-color: rgba(0,0,0,0.2);
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 20rem;
+    height: 5.5rem;
+}
