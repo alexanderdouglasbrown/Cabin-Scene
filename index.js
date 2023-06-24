@@ -477,12 +477,9 @@ const main = async () => {
             gl.drawArrays(gl.TRIANGLES, 0, data.faces)
         }
 
-        let model = m4_identity()
-        gl.uniformMatrix4fv(uModelLoc, false, model)
-        sceneMeshData.forEach(drawMesh)
-
         // Sun
         // Order matters -- scale, rotate, transform
+        let model = m4_identity()
         model = m4_multiply(m4_scaling(sunScale, sunScale, sunScale), model)
         model = m4_multiply(m4_z_rotation(sunRotateZ), model)
         model = m4_multiply(m4_y_rotation(sunRotateY), model)
@@ -492,6 +489,10 @@ const main = async () => {
 
         gl.uniformMatrix4fv(uModelLoc, false, model)
         sunMeshData.forEach(drawMesh)
+
+        model = m4_identity()
+        gl.uniformMatrix4fv(uModelLoc, false, model)
+        sceneMeshData.forEach(drawMesh)
 
         gl.drawArrays(gl.POINTS, 0, 1)
 
