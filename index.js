@@ -340,9 +340,9 @@ const main = async () => {
     gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.TEXTURE_2D, depthTexture, 0)
 
     //////
-    const lightPos = [25, 13, 25]
+    const lightDistance = 25
     const sunScale = 5
-    const sunDistance = 100
+    const sunDistance = 150
     // Blender's exported default rotation was not ideal
     const sunRotateX = degrees_to_radians(180)
     const sunRotateY = degrees_to_radians(90)
@@ -364,11 +364,6 @@ const main = async () => {
     let lastMouseX = null
     let lastMouseY = null
 
-    // const xSlider = document.querySelector("#x-slider")
-    // const ySlider = document.querySelector("#y-slider")
-    // const zSlider = document.querySelector("#z-slider")
-
-
     const draw = frameTime => {
         // Handle resize
         if (isInitialSetSize || canvas.clientWidth !== targetCanvasWidth || canvas.clientHeight !== targetCanvasHeight) {
@@ -378,12 +373,10 @@ const main = async () => {
             isInitialSetSize = false
         }
 
-        // let lightPos = [xSlider.value, ySlider.value, zSlider.value]
-        // console.log(`x: ${xSlider.value}`)
-        // console.log(`y: ${ySlider.value}`)
-        // console.log(`z: ${zSlider.value}`)
-        // console.log("-")
-    
+        let lightPosMatrix = m4_identity()
+        lightPosMatrix = m4_multiply(lightPosMatrix, m4_z_rotation(degrees_to_radians((30 + frameTime * 0.01) % 360)))
+        lightPosMatrix = m4_multiply(lightPosMatrix, m4_y_rotation(degrees_to_radians(5)))
+        const lightPos = [lightPosMatrix[0] * lightDistance, lightPosMatrix[1] * lightDistance, lightPosMatrix[2] * lightDistance]
 
         // Mouse
         if (isMouseDown) {
@@ -486,8 +479,6 @@ const main = async () => {
 
         // Sun
         // Order matters -- scale, rotate, transform (SRT) order, but also you apply it in reverse
-
-        // const sunPos = lightPos
         const sunPos = [lightVector[0] * sunDistance, lightVector[1] * sunDistance, lightVector[2] * sunDistance]
         let model = m4_identity()
         model = m4_multiply(model, m4_translation(sunPos[0], sunPos[1], sunPos[2]))
