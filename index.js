@@ -49,7 +49,7 @@ void main() {
     float light = max(dot(v_normal, u_lightDirection) * 0.5 + 0.75, 0.0);
 
     vec3 projectedTextureCoord = v_projectedTextureCoord.xyz / v_projectedTextureCoord.w;
-    float currentDepth = projectedTextureCoord.z - 0.00025;
+    float currentDepth = projectedTextureCoord.z - 0.0001;
 
     bool inRange =
         projectedTextureCoord.x >= 0.0 &&
@@ -512,17 +512,15 @@ const main = async () => {
         gl.uniformMatrix4fv(uModelLoc, false, model)
         sceneMeshData.forEach(data => {
             if (data.objName !== "Clouds") {
-                gl.enable(gl.CULL_FACE)
+                gl.disable(gl.CULL_FACE)
                 gl.uniformMatrix4fv(uModelLoc, false, landModel)
             } else {
-                gl.disable(gl.CULL_FACE)
+                gl.enable(gl.CULL_FACE)
                 gl.uniformMatrix4fv(uModelLoc, false, m4_y_rotation(-landSpin * 2))
             }
 
             drawMesh(data)
         })
-
-        gl.drawArrays(gl.POINTS, 0, 1)
 
         requestAnimationFrame(draw)
     }
