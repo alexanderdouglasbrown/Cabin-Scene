@@ -115,15 +115,38 @@ const main = async () => {
     // Mouse watching
     let mouseX = null
     let mouseY = null
+    let lastMouseX = null
+    let lastMouseY = null
     let isMouseDown = false
     let prevTouchDistance = null
     let cameraDistance = 30 // Guess I need to do this here
 
+    const handleMouseMove = () => {
+        // Mouse
+        if (isMouseDown) {
+            const xFactor = gl.canvas.clientWidth * 0.275
+            const yFactor = gl.canvas.clientHeight * 0.275
+            if (lastMouseX != null) {
+                cameraRotationX += (mouseY - lastMouseY) * yFactor
+                cameraRotationY += (mouseX - lastMouseX) * xFactor
+            }
+
+            if (cameraRotationX > 90)
+                cameraRotationX = 90
+            if (cameraRotationX < -90)
+                cameraRotationX = -90
+            cameraRotationY = cameraRotationY % 360
+
+            lastMouseX = mouseX
+            lastMouseY = mouseY
+        }
+    }
+
     const handleZoom = zoom => {
         cameraDistance += zoom
 
-        if (cameraDistance > 65)
-            cameraDistance = 65
+        if (cameraDistance > 85)
+            cameraDistance = 85
         if (cameraDistance < 20)
             cameraDistance = 20
     }
@@ -135,11 +158,15 @@ const main = async () => {
         isMouseDown = false
         mouseX = null
         mouseY = null
+        lastMouseX = null
+        lastMouseY = null
     })
     gl.canvas.addEventListener('mousemove', e => {
         const rect = canvas.getBoundingClientRect()
         mouseX = ((e.clientX - rect.left) / gl.canvas.clientWidth)
         mouseY = ((e.clientY - rect.top) / gl.canvas.clientHeight)
+
+        handleMouseMove()
     })
     gl.canvas.addEventListener('touchstart', e => {
         isMouseDown = true
@@ -149,6 +176,8 @@ const main = async () => {
         prevTouchDistance = null
         mouseX = null
         mouseY = null
+        lastMouseX = null
+        lastMouseY = null
     })
     gl.canvas.addEventListener('touchmove', e => {
         // e.preventDefault()
@@ -164,6 +193,8 @@ const main = async () => {
             const rect = canvas.getBoundingClientRect()
             mouseX = ((e.touches[0].clientX - rect.left) / gl.canvas.clientWidth)
             mouseY = ((e.touches[0].clientY - rect.top) / gl.canvas.clientHeight)
+
+            handleMouseMove()
         }
     })
     gl.canvas.addEventListener('wheel', e => {
@@ -378,8 +409,6 @@ const main = async () => {
 
     let cameraRotationX = 25
     let cameraRotationY = 200
-    let lastMouseX = null
-    let lastMouseY = null
 
     const draw = frameTime => {
         // Handle resize
@@ -391,31 +420,9 @@ const main = async () => {
         }
 
         let lightPosMatrix = m4_identity()
-        lightPosMatrix = m4_multiply(lightPosMatrix, m4_z_rotation(degrees_to_radians((30 + frameTime * 0.01) % 360)))
+        lightPosMatrix = m4_multiply(lightPosMatrix, m4_z_rotation(degrees_to_radians((30 + frameTime * 0.001) % 360)))
         lightPosMatrix = m4_multiply(lightPosMatrix, m4_y_rotation(degrees_to_radians(5)))
         const lightPos = [lightPosMatrix[0] * lightDistance, lightPosMatrix[1] * lightDistance, lightPosMatrix[2] * lightDistance]
-
-        // Mouse
-        if (isMouseDown) {
-            const xFactor = gl.canvas.clientWidth * 0.275
-            const yFactor = gl.canvas.clientHeight * 0.275
-            if (lastMouseX != null) {
-                cameraRotationX += (mouseY - lastMouseY) * yFactor
-                cameraRotationY += (mouseX - lastMouseX) * xFactor
-            }
-
-            if (cameraRotationX > 90)
-                cameraRotationX = 90
-            if (cameraRotationX < -90)
-                cameraRotationX = -90
-            cameraRotationY = cameraRotationY % 360
-
-            lastMouseX = mouseX
-            lastMouseY = mouseY
-        } else {
-            lastMouseX = null
-            lastMouseY = null
-        }
 
         const cameraPosition = [0, 0, cameraDistance]
         const camera = m4_look_at(cameraPosition, cameraTarget, up)
