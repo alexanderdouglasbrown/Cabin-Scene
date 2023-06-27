@@ -115,7 +115,7 @@ const main = async () => {
     let mouseX = null
     let mouseY = null
     let isMouseDown = false
-    let cameraDistance = 25 // Guess I need to do this here
+    let cameraDistance = 30 // Guess I need to do this here
     gl.canvas.addEventListener('mousedown', e => {
         isMouseDown = true
     })
@@ -148,8 +148,8 @@ const main = async () => {
         cameraDistance += e.deltaY * 0.01
         if (cameraDistance > 50)
             cameraDistance = 50
-        if (cameraDistance < 5)
-            cameraDistance = 5
+        if (cameraDistance < 20)
+            cameraDistance = 20
     })
 
     // Resize stuff
@@ -356,17 +356,14 @@ const main = async () => {
 
     gl.useProgram(program)
 
-
-    let cameraRotationX = 0
-    let cameraRotationY = 0
+    let cameraRotationX = 25
+    let cameraRotationY = 200
     let lastMouseX = null
     let lastMouseY = null
 
     const xSlider = document.querySelector("#x-slider")
     const ySlider = document.querySelector("#y-slider")
     const zSlider = document.querySelector("#z-slider")
-
-    console.log(xSlider.value)
 
     const draw = frameTime => {
         // Handle resize
@@ -381,17 +378,18 @@ const main = async () => {
 
         // Mouse
         if (isMouseDown) {
-            const xFactor = gl.canvas.clientWidth * 0.2
-            const yFactor = gl.canvas.clientHeight * 0.2
+            const xFactor = gl.canvas.clientWidth * 0.275
+            const yFactor = gl.canvas.clientHeight * 0.275
             if (lastMouseX != null) {
                 cameraRotationX += (mouseY - lastMouseY) * yFactor
                 cameraRotationY += (mouseX - lastMouseX) * xFactor
-
-                if (cameraRotationX < -25)
-                    cameraRotationX = -25
-                if (cameraRotationX > 25)
-                    cameraRotationX = 25
             }
+
+            if (cameraRotationX > 85)
+                cameraRotationX = 85
+            if (cameraRotationX < -6.5)
+                cameraRotationX = -6.5
+            cameraRotationY = cameraRotationY % 360
 
             lastMouseX = mouseX
             lastMouseY = mouseY
@@ -400,14 +398,12 @@ const main = async () => {
             lastMouseY = null
         }
 
-        const cameraPosition = [cameraDistance, cameraDistance, cameraDistance]
+        const cameraPosition = [0, 0, cameraDistance]
         const camera = m4_look_at(cameraPosition, cameraTarget, up)
         const view = m4_inverse(camera)
 
         const projection = m4_perspective(fov, aspect, zNear, zFar)
-        const updown = m4_multiply(m4_x_rotation(degrees_to_radians(cameraRotationX)), m4_z_rotation(degrees_to_radians(-cameraRotationX))) // Is this correct?
-        const world = m4_multiply(updown, m4_y_rotation(degrees_to_radians(cameraRotationY)))
-
+        const world = m4_multiply(m4_x_rotation(degrees_to_radians(cameraRotationX)), m4_y_rotation((degrees_to_radians(cameraRotationY))))
 
         // Shadow
         gl.useProgram(shadowProgram)
