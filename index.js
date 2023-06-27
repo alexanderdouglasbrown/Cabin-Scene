@@ -444,7 +444,7 @@ const main = async () => {
         gl.useProgram(program)
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
         gl.viewport(0, 0, gl.canvas.width, gl.canvas.height)
-        gl.clearColor(0.6, 0.74, 0.95, 1.0)
+        gl.clearColor(0.725, 0.74, 0.90, 1.0)
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 
         gl.uniformMatrix4fv(uWorldLoc, false, world)
