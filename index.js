@@ -24,7 +24,7 @@ void main() {
 
     v_normal = normalize(a_normal);
     v_textureCoord = a_textureCoord;
-    v_projectedTextureCoord = u_textureMatrix * u_world * a_position;
+    v_projectedTextureCoord = u_textureMatrix * u_world * u_model * a_position;
 }
 `
 
@@ -80,9 +80,10 @@ in vec4 a_position;
 uniform mat4 u_projection;
 uniform mat4 u_view;
 uniform mat4 u_world;
+uniform mat4 u_model;
 
 void main() {
-    gl_Position = u_projection * u_view * u_world * a_position;
+    gl_Position = u_projection * u_view * u_world * u_model * a_position;
 }
 `
 
@@ -215,6 +216,7 @@ const main = async () => {
     const shadowProgram = createProgram(gl, shadowVertexShader, shadowFragmentShader)
 
     const aShadowPositionLoc = gl.getAttribLocation(shadowProgram, "a_position")
+    const uShadowModelLoc = gl.getUniformLocation(shadowProgram, "u_model")
     const uShadowWorldLoc = gl.getUniformLocation(shadowProgram, "u_world")
     const uShadowViewLoc = gl.getUniformLocation(shadowProgram, "u_view")
     const uShadownProjectionLoc = gl.getUniformLocation(shadowProgram, "u_projection")
@@ -405,6 +407,9 @@ const main = async () => {
         const projection = m4_perspective(fov, aspect, zNear, zFar)
         const world = m4_multiply(m4_x_rotation(degrees_to_radians(cameraRotationX)), m4_y_rotation((degrees_to_radians(cameraRotationY))))
 
+        const landSpin = frameTime * 0.000025
+        const landModel = m4_y_rotation(landSpin)
+
         // Shadow
         gl.useProgram(shadowProgram)
         const shadowWorld = m4_identity()
@@ -415,13 +420,11 @@ const main = async () => {
         gl.uniformMatrix4fv(uShadownProjectionLoc, false, shadowProjection)
         gl.uniform4fv(uShadowColorLoc, [1, 1, 1, 1])
 
-        // gl.bindFramebuffer(gl.FRAMEBUFFER, null)
-        // gl.canvas.width = depthTextureSize
-        // gl.canvas.height = depthTextureSize
         gl.bindFramebuffer(gl.FRAMEBUFFER, depthFramebuffer)
         gl.viewport(0, 0, depthTextureSize, depthTextureSize)
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 
+        gl.uniformMatrix4fv(uShadowModelLoc, false, landModel)
         sceneMeshData.forEach(data => {
             if (data.objName !== "Clouds") {
                 gl.bindVertexArray(data.shadowVAO)
@@ -474,21 +477,29 @@ const main = async () => {
         }
 
         // Sun
-        // Order matters -- scale, rotate, transform
+        // Order matters -- scale, rotate, transform (SRT) order, but also you apply it in reverse
         let model = m4_identity()
-        model = m4_multiply(m4_scaling(sunScale, sunScale, sunScale), model)
-        model = m4_multiply(m4_z_rotation(sunRotateZ), model)
-        model = m4_multiply(m4_y_rotation(sunRotateY), model)
-        model = m4_multiply(m4_x_rotation(sunRotateX), model)
-        model = m4_multiply(m4_look_at(sunPos, [0.0, 0.0, 0.0], up), model)
-        model = m4_multiply(m4_translation(sunPos[0], sunPos[1], sunPos[2]), model)
+        model = m4_multiply(model, m4_translation(sunPos[0], sunPos[1], sunPos[2]))
+        model = m4_multiply(model, m4_look_at(sunPos, [0.0, 0.0, 0.0], up))
+        model = m4_multiply(model, m4_z_rotation(sunRotateZ))
+        model = m4_multiply(model, m4_y_rotation(sunRotateY))
+        model = m4_multiply(model, m4_x_rotation(sunRotateX))
+        model = m4_multiply(model, m4_scaling(sunScale, sunScale, sunScale))
+
 
         gl.uniformMatrix4fv(uModelLoc, false, model)
         sunMeshData.forEach(drawMesh)
 
         model = m4_identity()
         gl.uniformMatrix4fv(uModelLoc, false, model)
-        sceneMeshData.forEach(drawMesh)
+        sceneMeshData.forEach(data => {
+            if (data.objName !== "Clouds")
+                gl.uniformMatrix4fv(uModelLoc, false, landModel)
+            else
+                gl.uniformMatrix4fv(uModelLoc, false, m4_identity())
+
+            drawMesh(data)
+        })
 
         gl.drawArrays(gl.POINTS, 0, 1)
 
