@@ -1,0 +1,13 @@
+#boxes {
+    display: flex;
+    justify-content: space-around;
+    gap: 2rem;
+    width: 50rem;
+    margin-top: 2rem;
+}
+
+.color-box {
+    width: 20rem;
+    height: 20rem;
+    border: 1px solid black;
+}
