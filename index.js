@@ -49,7 +49,7 @@ void main() {
     float light = max(dot(v_normal, u_lightDirection) * 0.5 + 0.75, 0.0);
 
     vec3 projectedTextureCoord = v_projectedTextureCoord.xyz / v_projectedTextureCoord.w;
-    float currentDepth = projectedTextureCoord.z - 0.000025;
+    float currentDepth = projectedTextureCoord.z - 0.0001;
 
     bool inRange =
         projectedTextureCoord.x >= 0.0 &&
@@ -486,7 +486,6 @@ const main = async () => {
         model = m4_multiply(model, m4_x_rotation(sunRotateX))
         model = m4_multiply(model, m4_scaling(sunScale, sunScale, sunScale))
 
-
         gl.uniformMatrix4fv(uModelLoc, false, model)
         sunMeshData.forEach(drawMesh)
 
@@ -496,7 +495,7 @@ const main = async () => {
             if (data.objName !== "Clouds")
                 gl.uniformMatrix4fv(uModelLoc, false, landModel)
             else
-                gl.uniformMatrix4fv(uModelLoc, false, m4_identity())
+                gl.uniformMatrix4fv(uModelLoc, false, m4_y_rotation(-landSpin * 2))
 
             drawMesh(data)
         })
