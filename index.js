@@ -389,8 +389,8 @@ const main = async () => {
 
             if (cameraRotationX > 85)
                 cameraRotationX = 85
-            if (cameraRotationX < -5)
-                cameraRotationX = -5
+            if (cameraRotationX < -85)
+                cameraRotationX = -85
             cameraRotationY = cameraRotationY % 360
 
             lastMouseX = mouseX
@@ -494,10 +494,13 @@ const main = async () => {
         model = m4_identity()
         gl.uniformMatrix4fv(uModelLoc, false, model)
         sceneMeshData.forEach(data => {
-            if (data.objName !== "Clouds")
+            if (data.objName !== "Clouds") {
+                gl.enable(gl.CULL_FACE)
                 gl.uniformMatrix4fv(uModelLoc, false, landModel)
-            else
+            } else {
+                gl.disable(gl.CULL_FACE)
                 gl.uniformMatrix4fv(uModelLoc, false, m4_y_rotation(-landSpin * 2))
+            }
 
             drawMesh(data)
         })
