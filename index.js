@@ -49,7 +49,7 @@ void main() {
     float light = max(dot(v_normal, u_lightDirection) * 0.5 + 0.75, 0.0);
 
     vec3 projectedTextureCoord = v_projectedTextureCoord.xyz / v_projectedTextureCoord.w;
-    float currentDepth = projectedTextureCoord.z - 0.0001;
+    float currentDepth = projectedTextureCoord.z - 0.00025;
 
     bool inRange =
         projectedTextureCoord.x >= 0.0 &&
@@ -147,8 +147,8 @@ const main = async () => {
     })
     gl.canvas.addEventListener('wheel', e => {
         cameraDistance += e.deltaY * 0.01
-        if (cameraDistance > 50)
-            cameraDistance = 50
+        if (cameraDistance > 65)
+            cameraDistance = 65
         if (cameraDistance < 20)
             cameraDistance = 20
     })
@@ -340,8 +340,9 @@ const main = async () => {
     gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.TEXTURE_2D, depthTexture, 0)
 
     //////
-    // const sunPos = [7, 17, 1]
-    const sunScale = 1
+    const lightPos = [25, 13, 25]
+    const sunScale = 5
+    const sunDistance = 100
     // Blender's exported default rotation was not ideal
     const sunRotateX = degrees_to_radians(180)
     const sunRotateY = degrees_to_radians(90)
@@ -363,9 +364,10 @@ const main = async () => {
     let lastMouseX = null
     let lastMouseY = null
 
-    const xSlider = document.querySelector("#x-slider")
-    const ySlider = document.querySelector("#y-slider")
-    const zSlider = document.querySelector("#z-slider")
+    // const xSlider = document.querySelector("#x-slider")
+    // const ySlider = document.querySelector("#y-slider")
+    // const zSlider = document.querySelector("#z-slider")
+
 
     const draw = frameTime => {
         // Handle resize
@@ -376,7 +378,12 @@ const main = async () => {
             isInitialSetSize = false
         }
 
-        let sunPos = [xSlider.value, ySlider.value, zSlider.value]
+        // let lightPos = [xSlider.value, ySlider.value, zSlider.value]
+        // console.log(`x: ${xSlider.value}`)
+        // console.log(`y: ${ySlider.value}`)
+        // console.log(`z: ${zSlider.value}`)
+        // console.log("-")
+    
 
         // Mouse
         if (isMouseDown) {
@@ -389,8 +396,8 @@ const main = async () => {
 
             if (cameraRotationX > 85)
                 cameraRotationX = 85
-            if (cameraRotationX < -6.5)
-                cameraRotationX = -6.5
+            if (cameraRotationX < -5)
+                cameraRotationX = -5
             cameraRotationY = cameraRotationY % 360
 
             lastMouseX = mouseX
@@ -413,8 +420,8 @@ const main = async () => {
         // Shadow
         gl.useProgram(shadowProgram)
         const shadowWorld = m4_identity()
-        const shadowView = m4_inverse(m4_look_at(sunPos, cameraTarget, up))
-        const shadowProjection = m4_perspective(degrees_to_radians(150), 1, zNear, zFar)
+        const shadowView = m4_inverse(m4_look_at(lightPos, cameraTarget, up))
+        const shadowProjection = m4_perspective(degrees_to_radians(90), 1, zNear, zFar)
         gl.uniformMatrix4fv(uShadowWorldLoc, false, shadowWorld)
         gl.uniformMatrix4fv(uShadowViewLoc, false, shadowView)
         gl.uniformMatrix4fv(uShadownProjectionLoc, false, shadowProjection)
@@ -444,7 +451,8 @@ const main = async () => {
         gl.uniformMatrix4fv(uViewLoc, false, view)
         gl.uniformMatrix4fv(uProjectionLoc, false, projection)
 
-        gl.uniform3fv(uLightDirectionLoc, normalize(sunPos))
+        const lightVector = normalize(lightPos)
+        gl.uniform3fv(uLightDirectionLoc, lightVector)
         gl.uniform1i(uDiffuseMapLoc, 0)
         gl.uniform1i(uProjectedTextureLoc, 1)
 
@@ -478,6 +486,9 @@ const main = async () => {
 
         // Sun
         // Order matters -- scale, rotate, transform (SRT) order, but also you apply it in reverse
+
+        // const sunPos = lightPos
+        const sunPos = [lightVector[0] * sunDistance, lightVector[1] * sunDistance, lightVector[2] * sunDistance]
         let model = m4_identity()
         model = m4_multiply(model, m4_translation(sunPos[0], sunPos[1], sunPos[2]))
         model = m4_multiply(model, m4_look_at(sunPos, [0.0, 0.0, 0.0], up))
