@@ -3,6 +3,8 @@ body {
     background-color: black;
     margin: 0;
     touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
 }
 
 canvas {
@@ -20,4 +22,13 @@ canvas {
     font-weight: 600;
     text-shadow: 1px 1px MidnightBlue;
     white-space: pre;
+}
+
+#sliders {
+    background-color: rgba(0,0,0,0.2);
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 20rem;
+    height: 5.5rem;
 }
