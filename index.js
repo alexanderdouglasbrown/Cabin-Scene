@@ -68,7 +68,7 @@ void main() {
     float finalOpacity = u_opacity * diffuseMapColor.a;
 
     outColor = vec4(
-        finalDiffuse * light * shadow,
+        finalDiffuse * light * shadow * vec3(1.15, 1.0, 1.0),
         finalOpacity
     );
 }
