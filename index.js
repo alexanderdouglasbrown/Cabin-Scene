@@ -49,7 +49,7 @@ void main() {
     float light = max(dot(v_normal, u_lightDirection) * 0.5 + 0.75, 0.0);
 
     vec3 projectedTextureCoord = v_projectedTextureCoord.xyz / v_projectedTextureCoord.w;
-    float currentDepth = projectedTextureCoord.z - 0.001;
+    float currentDepth = projectedTextureCoord.z - 0.000025;
 
     bool inRange =
         projectedTextureCoord.x >= 0.0 &&
