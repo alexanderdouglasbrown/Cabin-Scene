@@ -116,7 +116,18 @@ const main = async () => {
     let mouseX = null
     let mouseY = null
     let isMouseDown = false
+    let prevTouchDistance = null
     let cameraDistance = 30 // Guess I need to do this here
+
+    const handleZoom = zoom => {
+        cameraDistance += zoom
+
+        if (cameraDistance > 65)
+            cameraDistance = 65
+        if (cameraDistance < 20)
+            cameraDistance = 20
+    }
+
     gl.canvas.addEventListener('mousedown', e => {
         isMouseDown = true
     })
@@ -135,22 +146,28 @@ const main = async () => {
     })
     gl.canvas.addEventListener('touchend', e => {
         isMouseDown = false
+        prevTouchDistance = null
         mouseX = null
         mouseY = null
     })
     gl.canvas.addEventListener('touchmove', e => {
-        e.preventDefault()
+        // e.preventDefault()
 
-        const rect = canvas.getBoundingClientRect()
-        mouseX = ((e.touches[0].clientX - rect.left) / gl.canvas.clientWidth)
-        mouseY = ((e.touches[0].clientY - rect.top) / gl.canvas.clientHeight)
+        if (e.touches.length === 2) {
+            const currentDistance = Math.sqrt(Math.pow(e.touches[1].clientX - e.touches[0].clientX, 2) + Math.pow(e.touches[1].clientY - e.touches[0].clientY, 2))
+
+            if (prevTouchDistance !== null)
+                handleZoom((prevTouchDistance - currentDistance) * 0.2)
+
+            prevTouchDistance = currentDistance
+        } else {
+            const rect = canvas.getBoundingClientRect()
+            mouseX = ((e.touches[0].clientX - rect.left) / gl.canvas.clientWidth)
+            mouseY = ((e.touches[0].clientY - rect.top) / gl.canvas.clientHeight)
+        }
     })
     gl.canvas.addEventListener('wheel', e => {
-        cameraDistance += e.deltaY * 0.01
-        if (cameraDistance > 65)
-            cameraDistance = 65
-        if (cameraDistance < 20)
-            cameraDistance = 20
+        handleZoom(e.deltaY * 0.015)
     })
 
     // Resize stuff
@@ -387,10 +404,10 @@ const main = async () => {
                 cameraRotationY += (mouseX - lastMouseX) * xFactor
             }
 
-            if (cameraRotationX > 85)
-                cameraRotationX = 85
-            if (cameraRotationX < -85)
-                cameraRotationX = -85
+            if (cameraRotationX > 90)
+                cameraRotationX = 90
+            if (cameraRotationX < -90)
+                cameraRotationX = -90
             cameraRotationY = cameraRotationY % 360
 
             lastMouseX = mouseX
