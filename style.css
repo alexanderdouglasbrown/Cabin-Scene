@@ -1,4 +1,4 @@
-#boxes {
+#boxes, #colors {
     display: flex;
     justify-content: space-around;
     gap: 2rem;
@@ -10,4 +10,18 @@
     width: 20rem;
     height: 20rem;
     border: 1px solid black;
+}
+
+#day {
+    /* background-color: rgb(159, 189, 230); */
+    /* background-color: rgb(230,255,255); */
+    background-color: rgb(183, 214, 238);
+}
+
+#sunset {
+    background-color: rgb(246, 76, 0);
+}
+
+#night {
+    background-color: rgb(22, 27, 47);
 }

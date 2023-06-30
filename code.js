@@ -13,9 +13,9 @@
         const getColor = (min, max) => {
             return (time / steps) * (max - min) + min
         }
-        const skyR = getColor(43, 230)
-        const skyG = getColor(47, 255)
-        const skyB = getColor(119, 255)
+        const skyR = getColor(22, 183)
+        const skyG = getColor(27, 214)
+        const skyB = getColor(47, 238)
 
         skyBox.style.backgroundColor = `rgb(${skyR}, ${skyG}, ${skyB})`
 
