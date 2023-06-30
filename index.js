@@ -2,6 +2,7 @@ import { degrees_to_radians, m4_perspective, m4_look_at, m4_inverse, m4_y_rotati
 
 import objLoader from './src/objLoader'
 import { createShader, createProgram } from './src/shaderFunctions'
+import getSkyColor from './src/getSkyColor'
 
 const vertexShaderGLSL = `#version 300 es
 
@@ -36,6 +37,7 @@ in vec2 v_textureCoord;
 in vec4 v_projectedTextureCoord;
 
 uniform vec3 u_lightDirection; // normalized
+uniform float u_lightIntensity;
 
 uniform sampler2D u_diffuseMap;
 uniform sampler2D u_projectedTexture;
@@ -68,7 +70,7 @@ void main() {
     float finalOpacity = u_opacity * diffuseMapColor.a;
 
     outColor = vec4(
-        finalDiffuse * light * shadow * vec3(1.15, 1.0, 1.0),
+        finalDiffuse * light * shadow * u_lightIntensity,
         finalOpacity
     );
 }
@@ -180,8 +182,6 @@ const main = async () => {
         lastMouseY = null
     })
     gl.canvas.addEventListener('touchmove', e => {
-        // e.preventDefault()
-
         if (e.touches.length === 2) {
             const currentDistance = Math.sqrt(Math.pow(e.touches[1].clientX - e.touches[0].clientX, 2) + Math.pow(e.touches[1].clientY - e.touches[0].clientY, 2))
 
@@ -253,6 +253,7 @@ const main = async () => {
     const uDiffuseMapLoc = gl.getUniformLocation(program, "u_diffuseMap")
     const uProjectedTextureLoc = gl.getUniformLocation(program, "u_projectedTexture")
     const uLightDirectionLoc = gl.getUniformLocation(program, "u_lightDirection")
+    const uLightIntensityLoc = gl.getUniformLocation(program, "u_lightIntensity")
     const uDiffuseLoc = gl.getUniformLocation(program, "u_diffuse")
     // const uAmbientLoc = gl.getUniformLocation(program, "u_ambient")
     // const uEmissiveLoc = gl.getUniformLocation(program, "u_emissive")
@@ -389,8 +390,8 @@ const main = async () => {
 
     //////
     const lightDistance = 25
-    const sunScale = 5
-    const sunDistance = 150
+    const sunScale = 10
+    const sunDistance = 300
     // Blender's exported default rotation was not ideal
     const sunRotateX = degrees_to_radians(180)
     const sunRotateY = degrees_to_radians(90)
@@ -419,8 +420,9 @@ const main = async () => {
             isInitialSetSize = false
         }
 
+        const lightAngle = (360 + -10 + (frameTime || 1) * 0.002) % 360
         let lightPosMatrix = m4_identity()
-        lightPosMatrix = m4_multiply(lightPosMatrix, m4_z_rotation(degrees_to_radians((30 + frameTime * 0.001) % 360)))
+        lightPosMatrix = m4_multiply(lightPosMatrix, m4_z_rotation(degrees_to_radians(lightAngle)))
         lightPosMatrix = m4_multiply(lightPosMatrix, m4_y_rotation(degrees_to_radians(5)))
         const lightPos = [lightPosMatrix[0] * lightDistance, lightPosMatrix[1] * lightDistance, lightPosMatrix[2] * lightDistance]
 
@@ -431,8 +433,12 @@ const main = async () => {
         const projection = m4_perspective(fov, aspect, zNear, zFar)
         const world = m4_multiply(m4_x_rotation(degrees_to_radians(cameraRotationX)), m4_y_rotation((degrees_to_radians(cameraRotationY))))
 
-        const landSpin = frameTime * 0.000025
+        const landSpin = (frameTime ||  1) * 0.000025
         const landModel = m4_y_rotation(landSpin)
+
+        // Sky color
+        const skyColor = getSkyColor(lightAngle)
+        gl.clearColor(skyColor[0], skyColor[1], skyColor[2], 1.0)
 
         // Shadow
         gl.useProgram(shadowProgram)
@@ -461,12 +467,14 @@ const main = async () => {
         gl.useProgram(program)
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
         gl.viewport(0, 0, gl.canvas.width, gl.canvas.height)
-        gl.clearColor(0.725, 0.74, 0.90, 1.0)
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 
         gl.uniformMatrix4fv(uWorldLoc, false, world)
         gl.uniformMatrix4fv(uViewLoc, false, view)
         gl.uniformMatrix4fv(uProjectionLoc, false, projection)
+
+        const lightIntensity = Math.min((skyColor[0] + skyColor[1] + skyColor[2]) / 3 + 0.4, 1.0)
+        gl.uniform1f(uLightIntensityLoc, lightIntensity)
 
         const lightVector = normalize(lightPos)
         gl.uniform3fv(uLightDirectionLoc, lightVector)
