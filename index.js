@@ -5,7 +5,6 @@ import { createShader, createProgram } from './src/shaderFunctions'
 import getSkyColor from './src/getSkyColor'
 
 const vertexShaderGLSL = `#version 300 es
-
 in vec4 a_position;
 in vec3 a_normal;
 in vec2 a_textureCoord;
@@ -101,6 +100,53 @@ void main() {
 }
 `
 
+const sunVertexShaderGLSL = `#version 300 es
+in vec4 a_position;
+in vec3 a_normal;
+in vec2 a_textureCoord;
+
+uniform mat4 u_model;
+uniform mat4 u_world;
+uniform mat4 u_view;
+uniform mat4 u_projection;
+uniform mat4 u_textureMatrix;
+
+out vec3 v_normal;
+out vec2 v_textureCoord;
+
+void main() {
+    gl_Position = u_projection * u_view * u_world * u_model * a_position;
+
+    v_textureCoord = a_textureCoord;
+}
+`
+
+const sunFragmentShader = `#version 300 es
+precision highp float;
+
+in vec2 v_textureCoord;
+in vec4 v_projectedTextureCoord;
+
+uniform float u_lightIntensity;
+
+uniform sampler2D u_diffuseMap;
+
+uniform vec3 u_diffuse;
+
+out vec4 outColor;
+
+void main() {
+    vec4 diffuseMapColor = texture(u_diffuseMap, v_textureCoord);
+
+    vec3 finalDiffuse = u_diffuse * diffuseMapColor.rgb;
+
+    outColor = vec4(
+        finalDiffuse * u_lightIntensity,
+        1.0
+    );
+}
+`
+
 const main = async () => {
     const setOverlay = msg => {
         document.querySelector("#overlay").textContent = msg
@@ -121,7 +167,7 @@ const main = async () => {
     let lastMouseY = null
     let isMouseDown = false
     let prevTouchDistance = null
-    let cameraDistance = 30 // Guess I need to do this here
+    let cameraDistance = 30
 
     const handleMouseMove = () => {
         // Mouse
@@ -255,8 +301,6 @@ const main = async () => {
     const uLightDirectionLoc = gl.getUniformLocation(program, "u_lightDirection")
     const uLightIntensityLoc = gl.getUniformLocation(program, "u_lightIntensity")
     const uDiffuseLoc = gl.getUniformLocation(program, "u_diffuse")
-    // const uAmbientLoc = gl.getUniformLocation(program, "u_ambient")
-    // const uEmissiveLoc = gl.getUniformLocation(program, "u_emissive")
     const uOpacityLoc = gl.getUniformLocation(program, "u_opacity")
 
     // Shadow shader
@@ -271,13 +315,12 @@ const main = async () => {
     const uShadownProjectionLoc = gl.getUniformLocation(shadowProgram, "u_projection")
     const uShadowColorLoc = gl.getUniformLocation(shadowProgram, "u_color")
 
-    const newMeshDataArray = (parsedObjs) => {
+    const newMeshDataArray = (parsedObjs, positionLoc, normalLoc, textureCoordLoc, shadowPositionLoc) => {
         const newMeshData = () => ({
             objName: undefined,
             vao: undefined,
             faces: 0,
             material: undefined,
-            shadowPosBuffer: undefined,
             posBuffer: undefined,
             normalBuffer: undefined,
             textureCoordBuffer: undefined,
@@ -318,43 +361,55 @@ const main = async () => {
                     }
                 }
 
-                data.posBuffer = gl.createBuffer()
-                gl.bindBuffer(gl.ARRAY_BUFFER, data.posBuffer)
-                gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(mesh.positions), gl.STATIC_DRAW)
+                if (positionLoc !== undefined) {
+                    data.posBuffer = gl.createBuffer()
+                    gl.bindBuffer(gl.ARRAY_BUFFER, data.posBuffer)
+                    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(mesh.positions), gl.STATIC_DRAW)
+                }
 
-                data.normalBuffer = gl.createBuffer()
-                gl.bindBuffer(gl.ARRAY_BUFFER, data.normalBuffer)
-                gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(mesh.normals), gl.STATIC_DRAW)
+                if (normalLoc !== undefined) {
+                    data.normalBuffer = gl.createBuffer()
+                    gl.bindBuffer(gl.ARRAY_BUFFER, data.normalBuffer)
+                    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(mesh.normals), gl.STATIC_DRAW)
+                }
 
-                data.textureCoordBuffer = gl.createBuffer()
-                gl.bindBuffer(gl.ARRAY_BUFFER, data.textureCoordBuffer)
-                gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(mesh.textureCoords), gl.STATIC_DRAW)
+                if (textureCoordLoc !== undefined) {
+                    data.textureCoordBuffer = gl.createBuffer()
+                    gl.bindBuffer(gl.ARRAY_BUFFER, data.textureCoordBuffer)
+                    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(mesh.textureCoords), gl.STATIC_DRAW)
+                }
 
-                // Shadow junk. Do better.
-                data.shadowVAO = gl.createVertexArray()
-                gl.bindVertexArray(data.shadowVAO)
+                if (shadowPositionLoc !== undefined) {
+                    data.shadowVAO = gl.createVertexArray()
+                    gl.bindVertexArray(data.shadowVAO)
 
-                gl.bindBuffer(gl.ARRAY_BUFFER, data.posBuffer)
-                gl.vertexAttribPointer(aShadowPositionLoc, 3, gl.FLOAT, false, 0, 0)
-                gl.enableVertexAttribArray(aShadowPositionLoc)
+                    gl.bindBuffer(gl.ARRAY_BUFFER, data.posBuffer)
+                    gl.vertexAttribPointer(shadowPositionLoc, 3, gl.FLOAT, false, 0, 0)
+                    gl.enableVertexAttribArray(shadowPositionLoc)
 
-                gl.bindVertexArray(null)
-                //
+                    gl.bindVertexArray(null)
+                }
 
                 data.vao = gl.createVertexArray()
                 gl.bindVertexArray(data.vao)
 
-                gl.bindBuffer(gl.ARRAY_BUFFER, data.posBuffer)
-                gl.vertexAttribPointer(aPositionLoc, 3, gl.FLOAT, false, 0, 0)
-                gl.enableVertexAttribArray(aPositionLoc)
+                if (positionLoc !== undefined) {
+                    gl.bindBuffer(gl.ARRAY_BUFFER, data.posBuffer)
+                    gl.vertexAttribPointer(positionLoc, 3, gl.FLOAT, false, 0, 0)
+                    gl.enableVertexAttribArray(positionLoc)
+                }
 
-                gl.bindBuffer(gl.ARRAY_BUFFER, data.normalBuffer)
-                gl.vertexAttribPointer(aNormalLoc, 3, gl.FLOAT, false, 0, 0)
-                gl.enableVertexAttribArray(aNormalLoc)
+                if (normalLoc !== undefined) {
+                    gl.bindBuffer(gl.ARRAY_BUFFER, data.normalBuffer)
+                    gl.vertexAttribPointer(normalLoc, 3, gl.FLOAT, false, 0, 0)
+                    gl.enableVertexAttribArray(normalLoc)
+                }
 
-                gl.bindBuffer(gl.ARRAY_BUFFER, data.textureCoordBuffer)
-                gl.vertexAttribPointer(aTextureCoordLoc, 2, gl.FLOAT, false, 0, 0)
-                gl.enableVertexAttribArray(aTextureCoordLoc)
+                if (textureCoordLoc !== undefined) {
+                    gl.bindBuffer(gl.ARRAY_BUFFER, data.textureCoordBuffer)
+                    gl.vertexAttribPointer(textureCoordLoc, 2, gl.FLOAT, false, 0, 0)
+                    gl.enableVertexAttribArray(textureCoordLoc)
+                }
 
                 gl.bindVertexArray(null)
 
@@ -370,10 +425,10 @@ const main = async () => {
     }
 
     const sceneMesh = await objLoader('./models', 'scene')
-    const sceneMeshData = newMeshDataArray(sceneMesh)
+    const sceneMeshData = newMeshDataArray(sceneMesh, aPositionLoc, aNormalLoc, aTextureCoordLoc, aShadowPositionLoc)
 
     const sunMesh = await objLoader('./models', 'sun')
-    const sunMeshData = newMeshDataArray(sunMesh)
+    const sunMeshData = newMeshDataArray(sunMesh, aPositionLoc, aNormalLoc, aTextureCoordLoc)
 
     // Shadow stuff
     const depthTexture = gl.createTexture()
@@ -420,7 +475,10 @@ const main = async () => {
             isInitialSetSize = false
         }
 
-        const lightAngle = (360 + -10 + (frameTime || 1) * 0.002) % 360
+        let lightAngle = (-10 + (frameTime || 1) * 0.002) % 360
+        if (lightAngle < 0)
+            lightAngle += 360
+
         let lightPosMatrix = m4_identity()
         lightPosMatrix = m4_multiply(lightPosMatrix, m4_z_rotation(degrees_to_radians(lightAngle)))
         lightPosMatrix = m4_multiply(lightPosMatrix, m4_y_rotation(degrees_to_radians(5)))
@@ -433,7 +491,7 @@ const main = async () => {
         const projection = m4_perspective(fov, aspect, zNear, zFar)
         const world = m4_multiply(m4_x_rotation(degrees_to_radians(cameraRotationX)), m4_y_rotation((degrees_to_radians(cameraRotationY))))
 
-        const landSpin = (frameTime ||  1) * 0.000025
+        const landSpin = (frameTime || 1) * 0.000025
         const landModel = m4_y_rotation(landSpin)
 
         // Sky color
@@ -495,10 +553,6 @@ const main = async () => {
             gl.bindVertexArray(data.vao)
 
             gl.uniform3fv(uDiffuseLoc, data.material.diffuse || [1.0, 1.0, 1.0])
-            // gl.uniform3fv(uAmbientLoc, data.material.ambient)
-            // gl.uniform3fv(uEmissiveLoc, data.material.emissive)
-            // gl.uniform3fv(uSpecularLoc, data.material.specular)
-            // gl.uniform1f(uShininessLoc, data.material.shininess)
             gl.uniform1f(uOpacityLoc, data.material.opacity)
 
             gl.activeTexture(gl.TEXTURE0)
@@ -527,10 +581,10 @@ const main = async () => {
         gl.uniformMatrix4fv(uModelLoc, false, model)
         sceneMeshData.forEach(data => {
             if (data.objName !== "Clouds") {
-                gl.disable(gl.CULL_FACE)
+                gl.enable(gl.CULL_FACE)
                 gl.uniformMatrix4fv(uModelLoc, false, landModel)
             } else {
-                gl.enable(gl.CULL_FACE)
+                gl.disable(gl.CULL_FACE)
                 gl.uniformMatrix4fv(uModelLoc, false, m4_y_rotation(-landSpin * 2))
             }
 

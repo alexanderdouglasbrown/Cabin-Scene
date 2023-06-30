@@ -26,7 +26,7 @@ const objLoader = async (directory, file) => {
         })
 
         const newObject = objName => ({
-            objName: objName,
+            objName: objName.trim(),
             meshes: new Map()
         })
 
