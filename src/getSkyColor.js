@@ -37,7 +37,6 @@ const getSkyColor = lightAngle => {
         r = getColor(shiftedZ, angleRange, nightR, dayR)
         g = getColor(shiftedZ, angleRange, nightG, dayG)
         b = getColor(shiftedZ, angleRange, nightB, dayB)
-
     }
     return [rgbToZeroOne(r), rgbToZeroOne(g), rgbToZeroOne(b)]
 }

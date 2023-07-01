@@ -435,6 +435,8 @@ const main = async () => {
 
     const sunMesh = await objLoader('./models', 'sun')
     const sunMeshData = newMeshDataArray(sunMesh, aSunPositionLoc, null, aSunTextureCoordLoc)
+    const sleepySunTexture = loadTexture('./models/sleepy-sun.png')
+    const moonTexture = loadTexture('./models/moon.png')
 
     // Shadow stuff
     const depthTexture = gl.createTexture()
@@ -451,7 +453,7 @@ const main = async () => {
 
     //////
     const lightDistance = 25
-    const sunScale = 30
+    const sunScale = 20
     const sunDistance = 300
 
     let isInitialSetSize = true
@@ -558,7 +560,16 @@ const main = async () => {
             gl.bindVertexArray(data.vao)
 
             gl.activeTexture(gl.TEXTURE0)
-            gl.bindTexture(gl.TEXTURE_2D, data.texture)
+
+            if (lightAngle >= 5 && lightAngle < 175) {
+                gl.bindTexture(gl.TEXTURE_2D, data.texture) // sun texture
+            } else if (lightAngle >= 175 && lightAngle < 185) {
+                gl.bindTexture(gl.TEXTURE_2D, sleepySunTexture)
+            } else if (lightAngle >= 185 && lightAngle < 355) {
+                gl.bindTexture(gl.TEXTURE_2D, moonTexture)
+            } else {
+                gl.bindTexture(gl.TEXTURE_2D, sleepySunTexture)
+            }
 
             gl.drawArrays(gl.TRIANGLES, 0, data.faces)
         })
