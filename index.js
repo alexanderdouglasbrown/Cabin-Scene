@@ -135,7 +135,9 @@ const main = async () => {
     gl.enable(gl.BLEND)
     gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
     gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true)
-    gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
+    gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1)
+
+    setOverlay("Compiling shaders")
 
     // Scene shaders
     const sceneVertexShader = createShader(gl, gl.VERTEX_SHADER, await (await fetch(`shaders/SceneVertexShader.glsl`)).text())
@@ -197,7 +199,7 @@ const main = async () => {
             loadingImagesSet.add(path)
 
             // The use of setOverlay() here causes a race condition if I decide to do something else with that function down the line
-            setOverlay("Loading textures...")
+            setOverlay("Loading textures")
 
             image.onload = e => {
                 gl.bindTexture(gl.TEXTURE_2D, texture)
