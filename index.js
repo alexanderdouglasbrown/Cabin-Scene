@@ -137,7 +137,7 @@ const main = async () => {
     gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true)
     gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1)
 
-    setOverlay("Compiling shaders")
+    setOverlay("Loading shaders")
 
     // Scene shaders
     const sceneVertexShader = createShader(gl, gl.VERTEX_SHADER, await (await fetch(`shaders/SceneVertexShader.glsl`)).text())
