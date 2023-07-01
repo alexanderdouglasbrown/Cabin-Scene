@@ -186,6 +186,13 @@ const main = async () => {
 
     const uSunLightIntensityLoc = gl.getUniformLocation(sunProgram, "u_lightIntensity")
 
+    // Load models
+    setOverlay("Loading models")
+    const sceneMesh = await objLoader('./models', 'scene')
+    const cloudsMesh = new Map([["Clouds", sceneMesh.get("Clouds")]])
+    sceneMesh.delete("Clouds")
+    const sunMesh = await objLoader('./models', 'sun')
+
     const loadingImagesSet = new Set()
     const loadTexture = path => {
         const texture = gl.createTexture()
@@ -302,13 +309,8 @@ const main = async () => {
         return result
     }
 
-    const sceneMesh = await objLoader('./models', 'scene')
-    const cloudsMesh = new Map([["Clouds", sceneMesh.get("Clouds")]])
-    sceneMesh.delete("Clouds")
     const sceneMeshData = newMeshDataArray(sceneMesh, aPositionLoc, aNormalLoc, aTextureCoordLoc, aShadowPositionLoc)
     const cloudsMeshData = newMeshDataArray(cloudsMesh, aPositionLoc, aNormalLoc, aTextureCoordLoc)[0]
-
-    const sunMesh = await objLoader('./models', 'sun')
     const sunMeshData = newMeshDataArray(sunMesh, aSunPositionLoc, null, aSunTextureCoordLoc)
     const sleepySunTexture = loadTexture('./models/sleepy-sun.png')
     const moonTexture = loadTexture('./models/moon.png')
