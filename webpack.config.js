@@ -20,7 +20,8 @@ module.exports = {
         new CopyWebpackPlugin({
             patterns: [
                 { from: 'public', to: '', globOptions: { ignore: "**/index.html" } },
-                { from: 'models', to: 'models' }
+                { from: 'models', to: 'models' },
+                { from: 'shaders', to: 'shaders' }
             ],
         })
     ],

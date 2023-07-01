@@ -4,137 +4,6 @@ import objLoader from './src/objLoader'
 import { createShader, createProgram } from './src/shaderFunctions'
 import getSkyColor from './src/getSkyColor'
 
-const vertexShaderGLSL = `#version 300 es
-in vec4 a_position;
-in vec3 a_normal;
-in vec2 a_textureCoord;
-
-uniform mat4 u_model;
-uniform mat4 u_world;
-uniform mat4 u_view;
-uniform mat4 u_projection;
-uniform mat4 u_textureMatrix;
-
-out vec3 v_normal;
-out vec2 v_textureCoord;
-out vec4 v_projectedTextureCoord;
-
-void main() {
-    gl_Position = u_projection * u_view * u_world * u_model * a_position;
-
-    v_normal = normalize(a_normal);
-    v_textureCoord = a_textureCoord;
-    v_projectedTextureCoord = u_textureMatrix * u_world * u_model * a_position;
-}
-`
-
-const fragmentShaderGLSL = `#version 300 es
-precision highp float;
-
-in vec3 v_normal;
-in vec2 v_textureCoord;
-in vec4 v_projectedTextureCoord;
-
-uniform vec3 u_lightDirection; // normalized
-uniform float u_lightIntensity;
-
-uniform sampler2D u_diffuseMap;
-uniform sampler2D u_projectedTexture;
-
-uniform vec3 u_diffuse;
-uniform float u_opacity;
-
-out vec4 outColor;
-
-void main() {
-    float light = max(dot(v_normal, u_lightDirection) * 0.5 + 0.75, 0.0);
-
-    vec3 projectedTextureCoord = v_projectedTextureCoord.xyz / v_projectedTextureCoord.w;
-    float currentDepth = projectedTextureCoord.z - 0.0001;
-
-    bool inRange =
-        projectedTextureCoord.x >= 0.0 &&
-        projectedTextureCoord.x <= 1.0 &&
-        projectedTextureCoord.y >= 0.0 &&
-        projectedTextureCoord.y <= 1.0 &&
-        projectedTextureCoord.z >= 0.0 &&
-        projectedTextureCoord.z <= 1.0;
-
-    float projectedDepth = texture(u_projectedTexture, projectedTextureCoord.xy).r;
-    float shadow = (inRange && projectedDepth <= currentDepth) ? 0.5 : 1.0;
-
-    vec4 diffuseMapColor = texture(u_diffuseMap, v_textureCoord);
-
-    vec3 finalDiffuse = u_diffuse * diffuseMapColor.rgb;
-    float finalOpacity = u_opacity * diffuseMapColor.a;
-
-    outColor = vec4(
-        finalDiffuse * light * shadow * u_lightIntensity,
-        finalOpacity
-    );
-}
-`
-
-const shadowVertexShaderGLSL = `#version 300 es
-in vec4 a_position;
-
-uniform mat4 u_projection;
-uniform mat4 u_view;
-uniform mat4 u_world;
-uniform mat4 u_model;
-
-void main() {
-    gl_Position = u_projection * u_view * u_world * u_model * a_position;
-}
-`
-
-const shadowFragmentShaderGLSL = `#version 300 es
-precision highp float;
-
-uniform vec4 u_color;
-
-out vec4 outColor;
-
-void main() {
-    outColor = u_color;
-}
-`
-
-const sunVertexShaderGLSL = `#version 300 es
-in vec4 a_position;
-in vec2 a_textureCoord;
-
-uniform mat4 u_model;
-uniform mat4 u_world;
-uniform mat4 u_view;
-uniform mat4 u_projection;
-
-out vec2 v_textureCoord;
-
-void main() {
-    gl_Position = u_projection * u_view * u_world * u_model * a_position;
-
-    v_textureCoord = a_textureCoord;
-}
-`
-
-const sunFragmentShaderGLSL = `#version 300 es
-precision highp float;
-
-in vec2 v_textureCoord;
-
-uniform float u_lightIntensity;
-uniform sampler2D u_diffuseMap;
-
-out vec4 outColor;
-
-void main() {
-    vec4 diffuseMapColor = texture(u_diffuseMap, v_textureCoord);
-
-    outColor = vec4(diffuseMapColor.rgb * u_lightIntensity * 1.2, 1.0);
-}
-`
-
 const main = async () => {
     const setOverlay = msg => {
         document.querySelector("#overlay").textContent = msg
@@ -268,9 +137,9 @@ const main = async () => {
     gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
 
     // Scene shaders
-    const vertexShader = createShader(gl, gl.VERTEX_SHADER, vertexShaderGLSL)
-    const fragmentShader = createShader(gl, gl.FRAGMENT_SHADER, fragmentShaderGLSL)
-    const sceneProgram = createProgram(gl, vertexShader, fragmentShader)
+    const sceneVertexShader = createShader(gl, gl.VERTEX_SHADER, await (await fetch(`shaders/SceneVertexShader.glsl`)).text())
+    const sceneFragmentShader = createShader(gl, gl.FRAGMENT_SHADER, await (await fetch(`shaders/SceneFragmentShader.glsl`)).text())
+    const sceneProgram = createProgram(gl, sceneVertexShader, sceneFragmentShader)
 
     const aPositionLoc = gl.getAttribLocation(sceneProgram, "a_position")
     const aNormalLoc = gl.getAttribLocation(sceneProgram, "a_normal")
@@ -290,8 +159,8 @@ const main = async () => {
     const uOpacityLoc = gl.getUniformLocation(sceneProgram, "u_opacity")
 
     // Shadow shader
-    const shadowVertexShader = createShader(gl, gl.VERTEX_SHADER, shadowVertexShaderGLSL)
-    const shadowFragmentShader = createShader(gl, gl.FRAGMENT_SHADER, shadowFragmentShaderGLSL)
+    const shadowVertexShader = createShader(gl, gl.VERTEX_SHADER, await (await fetch(`shaders/ShadowVertexShader.glsl`)).text())
+    const shadowFragmentShader = createShader(gl, gl.FRAGMENT_SHADER, await (await fetch(`shaders/ShadowFragmentShader.glsl`)).text())
     const shadowProgram = createProgram(gl, shadowVertexShader, shadowFragmentShader)
 
     const aShadowPositionLoc = gl.getAttribLocation(shadowProgram, "a_position")
@@ -301,8 +170,8 @@ const main = async () => {
     const uShadownProjectionLoc = gl.getUniformLocation(shadowProgram, "u_projection")
 
     // Sun shader
-    const sunVertexShader = createShader(gl, gl.VERTEX_SHADER, sunVertexShaderGLSL)
-    const sunFragmentShader = createShader(gl, gl.FRAGMENT_SHADER, sunFragmentShaderGLSL)
+    const sunVertexShader = createShader(gl, gl.VERTEX_SHADER, await (await fetch(`shaders/SunVertexShader.glsl`)).text())
+    const sunFragmentShader = createShader(gl, gl.FRAGMENT_SHADER, await (await fetch(`shaders/SunFragmentShader.glsl`)).text())
     const sunProgram = createProgram(gl, sunVertexShader, sunFragmentShader)
 
     const aSunPositionLoc = gl.getAttribLocation(sunProgram, "a_position")
