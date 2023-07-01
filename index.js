@@ -267,8 +267,6 @@ const main = async () => {
     gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true)
     gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
 
-    const loadingImagesSet = new Set()
-
     // Scene shaders
     const vertexShader = createShader(gl, gl.VERTEX_SHADER, vertexShaderGLSL)
     const fragmentShader = createShader(gl, gl.FRAGMENT_SHADER, fragmentShaderGLSL)
@@ -316,6 +314,36 @@ const main = async () => {
 
     const uSunLightIntensityLoc = gl.getUniformLocation(sunProgram, "u_lightIntensity")
 
+    const loadingImagesSet = new Set()
+    const loadTexture = path => {
+        const texture = gl.createTexture()
+        gl.bindTexture(gl.TEXTURE_2D, texture)
+        // Filler white pixel texture to be replaced if a real texture is needed
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([255, 255, 255, 255]))
+
+        if (path) {
+            const image = new Image()
+            image.src = path
+            loadingImagesSet.add(path)
+
+            // The use of setOverlay() here causes a race condition if I decide to do something else with that function down the line
+            setOverlay("Loading textures...")
+
+            image.onload = e => {
+                gl.bindTexture(gl.TEXTURE_2D, texture)
+                gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image)
+                gl.generateMipmap(gl.TEXTURE_2D)
+
+                loadingImagesSet.delete(path)
+                if (loadingImagesSet.size === 0)
+                    setOverlay(null)
+            }
+        }
+
+        return texture
+    }
+
+    // Very rigid
     const newMeshDataArray = (parsedObjs, positionLoc, normalLoc, textureCoordLoc, shadowPositionLoc) => {
         const newMeshData = () => ({
             objName: undefined,
@@ -337,32 +365,9 @@ const main = async () => {
                 data.faces = mesh.faces
                 data.material = mesh.material
 
-                const texture = gl.createTexture()
-                data.texture = texture
-                gl.bindTexture(gl.TEXTURE_2D, texture)
-                // Filler white pixel texture to be replaced if a real texture is needed
-                gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([255, 255, 255, 255]))
+                data.texture = loadTexture(mesh.material.diffuseMap ? `models/${mesh.material.diffuseMap}` : null)
 
-                // The use of setOverlay() here causes a race condition if I decide to do something else with that function down the line
-                // But as of now it's fine
-                if (mesh.material.diffuseMap) {
-                    const image = new Image()
-                    image.src = `models/${mesh.material.diffuseMap}`
-                    loadingImagesSet.add(mesh.material.diffuseMap)
-                    setOverlay("Loading textures...")
-
-                    image.onload = e => {
-                        gl.bindTexture(gl.TEXTURE_2D, data.texture)
-                        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image)
-                        gl.generateMipmap(gl.TEXTURE_2D)
-
-                        loadingImagesSet.delete(mesh.material.diffuseMap)
-                        if (loadingImagesSet.size === 0)
-                            setOverlay(null)
-                    }
-                }
-
-                if (positionLoc || positionLoc === 0) {
+                if (positionLoc || positionLoc === 0 || shadowPositionLoc || shadowPositionLoc === 0) {
                     data.posBuffer = gl.createBuffer()
                     gl.bindBuffer(gl.ARRAY_BUFFER, data.posBuffer)
                     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(mesh.positions), gl.STATIC_DRAW)
@@ -446,7 +451,7 @@ const main = async () => {
 
     //////
     const lightDistance = 25
-    const sunScale = 10
+    const sunScale = 30
     const sunDistance = 300
 
     let isInitialSetSize = true
