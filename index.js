@@ -512,7 +512,7 @@ const main = async () => {
         gl.useProgram(shadowProgram)
         const shadowWorld = m4_identity()
         const shadowView = m4_inverse(m4_look_at(lightPos, cameraTarget, up))
-        const shadowProjection = m4_perspective(degrees_to_radians(90), 1, zNear, zFar)
+        const shadowProjection = m4_perspective(degrees_to_radians(95), 1, zNear, zFar)
         gl.uniformMatrix4fv(uShadowWorldLoc, false, shadowWorld)
         gl.uniformMatrix4fv(uShadowViewLoc, false, shadowView)
         gl.uniformMatrix4fv(uShadownProjectionLoc, false, shadowProjection)
