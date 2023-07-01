@@ -431,7 +431,10 @@ const main = async () => {
     }
 
     const sceneMesh = await objLoader('./models', 'scene')
+    const cloudsMesh = new Map([["Clouds", sceneMesh.get("Clouds")]])
+    sceneMesh.delete("Clouds")
     const sceneMeshData = newMeshDataArray(sceneMesh, aPositionLoc, aNormalLoc, aTextureCoordLoc, aShadowPositionLoc)
+    const cloudsMeshData = newMeshDataArray(cloudsMesh, aPositionLoc, aNormalLoc, aTextureCoordLoc)[0]
 
     const sunMesh = await objLoader('./models', 'sun')
     const sunMeshData = newMeshDataArray(sunMesh, aSunPositionLoc, null, aSunTextureCoordLoc)
@@ -520,11 +523,9 @@ const main = async () => {
 
         gl.uniformMatrix4fv(uShadowModelLoc, false, landModel)
         sceneMeshData.forEach(data => {
-            if (data.objName !== "Clouds") {
-                gl.bindVertexArray(data.shadowVAO)
+            gl.bindVertexArray(data.shadowVAO)
 
-                gl.drawArrays(gl.TRIANGLES, 0, data.faces)
-            }
+            gl.drawArrays(gl.TRIANGLES, 0, data.faces)
         })
 
         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
@@ -577,6 +578,7 @@ const main = async () => {
         //Scene
         gl.useProgram(sceneProgram)
 
+        gl.uniformMatrix4fv(uModelLoc, false, landModel)
         gl.uniformMatrix4fv(uWorldLoc, false, world)
         gl.uniformMatrix4fv(uViewLoc, false, view)
         gl.uniformMatrix4fv(uProjectionLoc, false, projection)
@@ -598,14 +600,6 @@ const main = async () => {
         gl.uniformMatrix4fv(uTextureMatrixLoc, false, textureMatrix)
 
         sceneMeshData.forEach(data => {
-            if (data.objName !== "Clouds") {
-                gl.enable(gl.CULL_FACE)
-                gl.uniformMatrix4fv(uModelLoc, false, landModel)
-            } else {
-                gl.disable(gl.CULL_FACE)
-                gl.uniformMatrix4fv(uModelLoc, false, m4_y_rotation(-landSpin * 2))
-            }
-
             gl.bindVertexArray(data.vao)
 
             gl.uniform3fv(uDiffuseLoc, data.material.diffuse || [1.0, 1.0, 1.0])
@@ -619,6 +613,17 @@ const main = async () => {
 
             gl.drawArrays(gl.TRIANGLES, 0, data.faces)
         })
+
+        // Clouds
+        gl.disable(gl.CULL_FACE)
+        gl.uniformMatrix4fv(uModelLoc, false, m4_y_rotation(landSpin * 2))
+        gl.bindVertexArray(cloudsMeshData.vao)
+        gl.uniform3fv(uDiffuseLoc, cloudsMeshData.material.diffuse || [1.0, 1.0, 1.0])
+        gl.uniform1f(uOpacityLoc, cloudsMeshData.material.opacity)
+        gl.activeTexture(gl.TEXTURE0)
+        gl.bindTexture(gl.TEXTURE_2D, cloudsMeshData.texture)
+        gl.drawArrays(gl.TRIANGLES, 0, cloudsMeshData.faces)
+        gl.enable(gl.CULL_FACE)
 
         requestAnimationFrame(draw)
     }
