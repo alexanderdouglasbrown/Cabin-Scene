@@ -1,0 +1,45 @@
+#version 300 es
+precision highp float;
+
+in vec3 v_normal;
+in vec2 v_textureCoord;
+in vec4 v_projectedTextureCoord;
+
+uniform vec3 u_lightDirection; // normalized
+uniform float u_lightIntensity;
+
+uniform sampler2D u_diffuseMap;
+uniform sampler2D u_projectedTexture;
+
+uniform vec3 u_diffuse;
+uniform float u_opacity;
+
+out vec4 outColor;
+
+void main() {
+    float light = max(dot(v_normal, u_lightDirection) * 0.5 + 0.75, 0.0);
+
+    vec3 projectedTextureCoord = v_projectedTextureCoord.xyz / v_projectedTextureCoord.w;
+    float currentDepth = projectedTextureCoord.z - 0.0001;
+
+    bool inRange =
+        projectedTextureCoord.x >= 0.0 &&
+        projectedTextureCoord.x <= 1.0 &&
+        projectedTextureCoord.y >= 0.0 &&
+        projectedTextureCoord.y <= 1.0 &&
+        projectedTextureCoord.z >= 0.0 &&
+        projectedTextureCoord.z <= 1.0;
+
+    float projectedDepth = texture(u_projectedTexture, projectedTextureCoord.xy).r;
+    float shadow = (inRange && projectedDepth <= currentDepth) ? 0.5 : 1.0;
+
+    vec4 diffuseMapColor = texture(u_diffuseMap, v_textureCoord);
+
+    vec3 finalDiffuse = u_diffuse * diffuseMapColor.rgb;
+    float finalOpacity = u_opacity * diffuseMapColor.a;
+
+    outColor = vec4(
+        finalDiffuse * light * shadow * u_lightIntensity,
+        finalOpacity
+    );
+}
