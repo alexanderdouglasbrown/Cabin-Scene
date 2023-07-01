@@ -74,6 +74,7 @@ const main = async () => {
         handleMouseMove()
     })
     gl.canvas.addEventListener('touchstart', e => {
+        e.preventDefault()
         isMouseDown = true
     })
     gl.canvas.addEventListener('touchend', e => {
