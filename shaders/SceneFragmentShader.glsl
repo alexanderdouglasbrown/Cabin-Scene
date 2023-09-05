@@ -23,10 +23,6 @@ void main() {
     float currentDepth = projectedTextureCoord.z - 0.0001;
 
     bool inRange =
-        projectedTextureCoord.x >= 0.0 &&
-        projectedTextureCoord.x <= 1.0 &&
-        projectedTextureCoord.y >= 0.0 &&
-        projectedTextureCoord.y <= 1.0 &&
         projectedTextureCoord.z >= 0.0 &&
         projectedTextureCoord.z <= 1.0;
 
