@@ -15,9 +15,11 @@ out vec2 v_textureCoord;
 out vec4 v_projectedTextureCoord;
 
 void main() {
-    gl_Position = u_projection * u_view * u_world * u_model * a_position;
+    vec4 scene = u_world * u_model * a_position;
+
+    gl_Position = u_projection * u_view * scene;
 
     v_normal = normalize(a_normal);
     v_textureCoord = a_textureCoord;
-    v_projectedTextureCoord = u_textureMatrix * u_world * u_model * a_position;
+    v_projectedTextureCoord = u_textureMatrix * scene;
 }
