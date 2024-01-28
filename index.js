@@ -24,7 +24,7 @@ const main = async () => {
     let lastMouseY = null
     let isMouseDown = false
     let prevTouchDistance = null
-    let cameraDistance = 30
+    let cameraDistance = 50
 
     const handleMouseMove = () => {
         // Mouse
@@ -47,13 +47,15 @@ const main = async () => {
         }
     }
 
+    const MIN_ZOOM = 20
+    const MAX_ZOOM = 150
     const handleZoom = zoom => {
         cameraDistance += zoom
 
-        if (cameraDistance > 85)
-            cameraDistance = 85
-        if (cameraDistance < 20)
-            cameraDistance = 20
+        if (cameraDistance > MAX_ZOOM)
+            cameraDistance = MAX_ZOOM
+        if (cameraDistance < MIN_ZOOM)
+            cameraDistance = MIN_ZOOM
     }
 
     gl.canvas.addEventListener('mousedown', e => {
@@ -90,7 +92,7 @@ const main = async () => {
             const currentDistance = Math.sqrt(Math.pow(e.touches[1].clientX - e.touches[0].clientX, 2) + Math.pow(e.touches[1].clientY - e.touches[0].clientY, 2))
 
             if (prevTouchDistance !== null)
-                handleZoom((prevTouchDistance - currentDistance) * 0.2)
+                handleZoom((prevTouchDistance - currentDistance) * 0.3)
 
             prevTouchDistance = currentDistance
         } else {
@@ -102,7 +104,7 @@ const main = async () => {
         }
     })
     gl.canvas.addEventListener('wheel', e => {
-        handleZoom(e.deltaY * 0.015)
+        handleZoom(e.deltaY * 0.0325)
     })
 
     // Resize stuff
@@ -336,15 +338,15 @@ const main = async () => {
     let isInitialSetSize = true
 
     const zNear = 0.1
-    const zFar = 1000.0
-    const fov = degrees_to_radians(75)
+    const zFar = 1500.0
+    const fov = degrees_to_radians(45) // y-axis FOV
 
     const cameraTarget = [0, 0, 0]
     const up = [0, 1, 0]
 
     gl.useProgram(sceneProgram)
 
-    let cameraRotationX = 25
+    let cameraRotationX = 20
     let cameraRotationY = 200
 
     const draw = frameTime => {

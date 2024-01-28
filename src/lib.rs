@@ -274,10 +274,10 @@ pub fn m4_transpose(m: Float64Array) -> Float64Array {
 }
 
 #[wasm_bindgen]
-pub fn m4_perspective(fov: f64, aspect: f64, near: f64, far: f64) -> Float64Array {
+pub fn m4_perspective(fov_y: f64, aspect: f64, near: f64, far: f64) -> Float64Array {
     use std::f64::consts::PI;
 
-    let f = (PI * 0.5 - 0.5 * fov).tan();
+    let f = (PI * 0.5 - 0.5 * fov_y).tan();
     let range_inv = 1.0 / (near - far);
 
     let arr = [
