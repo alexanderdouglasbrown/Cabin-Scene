@@ -188,11 +188,27 @@ const main = async () => {
 
     const uSunLightIntensityLoc = gl.getUniformLocation(sunProgram, "u_lightIntensity")
 
+    // Water shader
+    // const waterVertexShader = createShader(gl, gl.VERTEX_SHADER, await (await fetch(`shaders/WaterVertexShader.glsl`)).text())
+    // const waterFragmentShader = createShader(gl, gl.FRAGMENT_SHADER, await (await fetch(`shaders/WaterFragmentShader.glsl`)).text())
+    // const waterReflectionProgram = createProgram(gl, waterVertexShader, waterFragmentShader)
+
+    // const aWaterReflectionPositionLoc = gl.getAttribLocation(waterReflectionProgram, "a_position")
+    // const uWaterReflectionModelLoc = gl.getUniformLocation(waterReflectionProgram, "u_model")
+    // const uWaterReflectionWorldLoc = gl.getUniformLocation(waterReflectionProgram, "u_world")
+    // const uWaterReflectionViewLoc = gl.getUniformLocation(waterReflectionProgram, "u_view")
+    // const uWaterReflectionProjectionLoc = gl.getUniformLocation(waterReflectionProgram, "u_projection")
+
     // Load models
     setOverlay("Loading models")
     const sceneMesh = await objLoader('./models', 'scene')
+
     const cloudsMesh = new Map([["Clouds", sceneMesh.get("Clouds")]])
     sceneMesh.delete("Clouds")
+
+    const waterMesh = new Map([["Water", sceneMesh.get("Water")]])
+    sceneMesh.delete("Water")
+
     const sunMesh = await objLoader('./models', 'sun')
 
     const loadingImagesSet = new Set()
@@ -300,11 +316,7 @@ const main = async () => {
 
                 gl.bindVertexArray(null)
 
-                // Transparent materials need to be pushed to the end
-                if (mesh && mesh.material && mesh.material.opacity === 1.0)
-                    result.unshift(data)
-                else
-                    result.push(data)
+                result.push(data)
             })
         })
 
@@ -313,6 +325,7 @@ const main = async () => {
 
     const sceneMeshData = newMeshDataArray(sceneMesh, aPositionLoc, aNormalLoc, aTextureCoordLoc, aShadowPositionLoc)
     const cloudsMeshData = newMeshDataArray(cloudsMesh, aPositionLoc, aNormalLoc, aTextureCoordLoc)[0]
+    const waterReflectionData = newMeshDataArray(waterMesh, aPositionLoc, aNormalLoc, aTextureCoordLoc)[0]
     const sunMeshData = newMeshDataArray(sunMesh, aSunPositionLoc, null, aSunTextureCoordLoc)
     const sleepySunTexture = loadTexture('./models/sleepy-sun.png')
     const moonTexture = loadTexture('./models/moon.png')
@@ -329,6 +342,17 @@ const main = async () => {
     const depthFramebuffer = gl.createFramebuffer()
     gl.bindFramebuffer(gl.FRAMEBUFFER, depthFramebuffer)
     gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.TEXTURE_2D, depthTexture, 0)
+
+    // Water Reflection
+    const reflectionTexture = gl.createTexture()
+    const reflectionTextureSize = 1024
+    gl.bindTexture(gl.TEXTURE_2D, reflectionTexture)
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, reflectionTextureSize, reflectionTextureSize, 0, gl.RGBA, gl.UNSIGNED_BYTE, null)
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
+    const reflectionFrameBuffer = gl.createFramebuffer()
+    gl.bindFramebuffer(gl.FRAMEBUFFER, reflectionFrameBuffer)
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, reflectionTexture, 0)
 
     //////
     const lightDistance = 25
@@ -358,7 +382,7 @@ const main = async () => {
             isInitialSetSize = false
         }
 
-        let lightAngle = (-10 + (frameTime || 1) * 0.002) % 360
+        let lightAngle = (-10 + (frameTime || 1) * 0.02) % 360
         if (lightAngle < 0)
             lightAngle += 360
 
@@ -404,9 +428,35 @@ const main = async () => {
             gl.drawArrays(gl.TRIANGLES, 0, data.faces)
         })
 
-        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-        gl.viewport(0, 0, gl.canvas.width, gl.canvas.height)
+        // gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        // gl.viewport(0, 0, gl.canvas.width, gl.canvas.height)
+        // gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
+
+        // Water Reflection
+        gl.useProgram(sceneProgram)
+        const reflectionWorld = m4_identity()
+        const reflectionPos = m4_look_at(camera, [0, 0, 2000], up)
+        const reflectionView = m4_inverse(m4_look_at(reflectionPos, lightPos, [1, 0, 1]))
+        const reflectionProjection = m4_perspective(degrees_to_radians(95), 1, zNear, zFar)
+        gl.uniformMatrix4fv(uWorldLoc, false, reflectionWorld)
+        gl.uniformMatrix4fv(uViewLoc, false, reflectionView)
+        gl.uniformMatrix4fv(uProjectionLoc, false, reflectionProjection)
+
+        gl.bindFramebuffer(gl.FRAMEBUFFER, reflectionFrameBuffer)
+        gl.viewport(0, 0, reflectionTextureSize, reflectionTextureSize)
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
+
+        gl.uniformMatrix4fv(uModelLoc, false, landModel)
+        sceneMeshData.forEach(data => {
+            gl.bindVertexArray(data.vao)
+
+            gl.uniform3fv(uDiffuseLoc, data.material.diffuse || [1.0, 1.0, 1.0])
+
+            gl.activeTexture(gl.TEXTURE0)
+            gl.bindTexture(gl.TEXTURE_2D, data.texture)
+
+            gl.drawArrays(gl.TRIANGLES, 0, data.faces)
+        })
 
         // Sun
         gl.useProgram(sunProgram)
@@ -433,23 +483,32 @@ const main = async () => {
 
         gl.uniformMatrix4fv(uSunModelLoc, false, sunModel)
 
-        sunMeshData.forEach(data => {
-            gl.bindVertexArray(data.vao)
+        const drawSun = () => {
+            sunMeshData.forEach(data => {
+                gl.bindVertexArray(data.vao)
 
-            gl.activeTexture(gl.TEXTURE0)
+                gl.activeTexture(gl.TEXTURE0)
 
-            if (lightAngle >= 5 && lightAngle < 175) {
-                gl.bindTexture(gl.TEXTURE_2D, data.texture) // sun texture
-            } else if (lightAngle >= 175 && lightAngle < 185) {
-                gl.bindTexture(gl.TEXTURE_2D, sleepySunTexture)
-            } else if (lightAngle >= 185 && lightAngle < 355) {
-                gl.bindTexture(gl.TEXTURE_2D, moonTexture)
-            } else {
-                gl.bindTexture(gl.TEXTURE_2D, sleepySunTexture)
-            }
+                if (lightAngle >= 5 && lightAngle < 175) {
+                    gl.bindTexture(gl.TEXTURE_2D, data.texture) // sun texture
+                } else if (lightAngle >= 175 && lightAngle < 185) {
+                    gl.bindTexture(gl.TEXTURE_2D, sleepySunTexture)
+                } else if (lightAngle >= 185 && lightAngle < 355) {
+                    gl.bindTexture(gl.TEXTURE_2D, moonTexture)
+                } else {
+                    gl.bindTexture(gl.TEXTURE_2D, sleepySunTexture)
+                }
 
-            gl.drawArrays(gl.TRIANGLES, 0, data.faces)
-        })
+                gl.drawArrays(gl.TRIANGLES, 0, data.faces)
+            })
+        }
+        drawSun()
+
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null)
+        gl.viewport(0, 0, gl.canvas.width, gl.canvas.height)
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
+
+        drawSun()
 
         //Scene
         gl.useProgram(sceneProgram)
@@ -489,6 +548,16 @@ const main = async () => {
 
             gl.drawArrays(gl.TRIANGLES, 0, data.faces)
         })
+
+        // Water
+        gl.bindVertexArray(waterReflectionData.vao)
+        gl.uniform3fv(uDiffuseLoc, waterReflectionData.material.diffuse || [1.0, 1.0, 1.0])
+        // gl.uniform1f(uOpacityLoc, waterReflectionData.material.opacity)
+        // gl.activeTexture(gl.TEXTURE0)
+        // gl.bindTexture(gl.TEXTURE_2D, waterReflectionData.texture)
+        gl.activeTexture(gl.TEXTURE0)
+        gl.bindTexture(gl.TEXTURE_2D, reflectionTexture)
+        gl.drawArrays(gl.TRIANGLES, 0, waterReflectionData.faces)
 
         // Clouds
         gl.disable(gl.CULL_FACE)
