@@ -189,15 +189,27 @@ const main = async () => {
     const uSunLightIntensityLoc = gl.getUniformLocation(sunProgram, "u_lightIntensity")
 
     // Water shader
-    // const waterVertexShader = createShader(gl, gl.VERTEX_SHADER, await (await fetch(`shaders/WaterVertexShader.glsl`)).text())
-    // const waterFragmentShader = createShader(gl, gl.FRAGMENT_SHADER, await (await fetch(`shaders/WaterFragmentShader.glsl`)).text())
-    // const waterReflectionProgram = createProgram(gl, waterVertexShader, waterFragmentShader)
+    const waterVertexShader = createShader(gl, gl.VERTEX_SHADER, await (await fetch(`shaders/WaterVertexShader.glsl`)).text())
+    const waterFragmentShader = createShader(gl, gl.FRAGMENT_SHADER, await (await fetch(`shaders/WaterFragmentShader.glsl`)).text())
+    const waterProgram = createProgram(gl, waterVertexShader, waterFragmentShader)
 
-    // const aWaterReflectionPositionLoc = gl.getAttribLocation(waterReflectionProgram, "a_position")
-    // const uWaterReflectionModelLoc = gl.getUniformLocation(waterReflectionProgram, "u_model")
-    // const uWaterReflectionWorldLoc = gl.getUniformLocation(waterReflectionProgram, "u_world")
-    // const uWaterReflectionViewLoc = gl.getUniformLocation(waterReflectionProgram, "u_view")
-    // const uWaterReflectionProjectionLoc = gl.getUniformLocation(waterReflectionProgram, "u_projection")
+    const aWaterPositionLoc = gl.getAttribLocation(waterProgram, "a_position")
+    const aWaterNormalLoc = gl.getAttribLocation(waterProgram, "a_normal")
+    const aWaterTextureCoordLoc = gl.getAttribLocation(waterProgram, "a_textureCoord")
+
+    const uWaterModelLoc = gl.getUniformLocation(waterProgram, "u_model")
+    const uWaterWorldLoc = gl.getUniformLocation(waterProgram, "u_world")
+    const uWaterViewLoc = gl.getUniformLocation(waterProgram, "u_view")
+    const uWaterProjectionLoc = gl.getUniformLocation(waterProgram, "u_projection")
+    const uWaterTextureMatrixLoc = gl.getUniformLocation(waterProgram, "u_textureMatrix")
+
+    // const uWaterDiffuseMapLoc = gl.getUniformLocation(waterProgram, "u_diffuseMap")
+    // const uWaterProjectedTextureLoc = gl.getUniformLocation(waterProgram, "u_projectedTexture")
+    const uWaterReflectionDiffuseMap = gl.getUniformLocation(waterProgram, "u_reflectionDiffuseMap")
+    const uWaterLightDirectionLoc = gl.getUniformLocation(waterProgram, "u_lightDirection")
+    const uWaterLightIntensityLoc = gl.getUniformLocation(waterProgram, "u_lightIntensity")
+    const uWaterDiffuseLoc = gl.getUniformLocation(waterProgram, "u_diffuse")
+    const uWaterOpacityLoc = gl.getUniformLocation(waterProgram, "u_opacity")
 
     // Load models
     setOverlay("Loading models")
@@ -325,7 +337,7 @@ const main = async () => {
 
     const sceneMeshData = newMeshDataArray(sceneMesh, aPositionLoc, aNormalLoc, aTextureCoordLoc, aShadowPositionLoc)
     const cloudsMeshData = newMeshDataArray(cloudsMesh, aPositionLoc, aNormalLoc, aTextureCoordLoc)[0]
-    const waterReflectionData = newMeshDataArray(waterMesh, aPositionLoc, aNormalLoc, aTextureCoordLoc)[0]
+    const waterReflectionData = newMeshDataArray(waterMesh, aWaterPositionLoc, aWaterNormalLoc, aWaterTextureCoordLoc)[0]
     const sunMeshData = newMeshDataArray(sunMesh, aSunPositionLoc, null, aSunTextureCoordLoc)
     const sleepySunTexture = loadTexture('./models/sleepy-sun.png')
     const moonTexture = loadTexture('./models/moon.png')
@@ -345,7 +357,7 @@ const main = async () => {
 
     // Water Reflection
     const reflectionTexture = gl.createTexture()
-    const reflectionTextureSize = 1024
+    const reflectionTextureSize = 2048
     gl.bindTexture(gl.TEXTURE_2D, reflectionTexture)
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, reflectionTextureSize, reflectionTextureSize, 0, gl.RGBA, gl.UNSIGNED_BYTE, null)
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
@@ -382,9 +394,10 @@ const main = async () => {
             isInitialSetSize = false
         }
 
-        let lightAngle = (-10 + (frameTime || 1) * 0.02) % 360
-        if (lightAngle < 0)
-            lightAngle += 360
+        let lightAngle = 100
+        // let lightAngle = (-10 + (frameTime || 1) * 0.02) % 360
+        // if (lightAngle < 0)
+        //     lightAngle += 360
 
         let lightPosMatrix = m4_identity()
         lightPosMatrix = m4_multiply(lightPosMatrix, m4_z_rotation(degrees_to_radians(lightAngle)))
@@ -436,7 +449,8 @@ const main = async () => {
         gl.useProgram(sceneProgram)
         const reflectionWorld = m4_identity()
         const reflectionPos = m4_look_at(camera, [0, 0, 2000], up)
-        const reflectionView = m4_inverse(m4_look_at(reflectionPos, lightPos, [1, 0, 1]))
+        // const reflectionView = m4_inverse(m4_look_at(lightPos, [0, 0, 0], [1, 0, 1]))
+        const reflectionView = m4_inverse(m4_look_at([0,0,0], view,  [0, -1, 0]))
         const reflectionProjection = m4_perspective(degrees_to_radians(95), 1, zNear, zFar)
         gl.uniformMatrix4fv(uWorldLoc, false, reflectionWorld)
         gl.uniformMatrix4fv(uViewLoc, false, reflectionView)
@@ -451,6 +465,7 @@ const main = async () => {
             gl.bindVertexArray(data.vao)
 
             gl.uniform3fv(uDiffuseLoc, data.material.diffuse || [1.0, 1.0, 1.0])
+            gl.uniform1f(uOpacityLoc, data.material.opacity)
 
             gl.activeTexture(gl.TEXTURE0)
             gl.bindTexture(gl.TEXTURE_2D, data.texture)
@@ -549,16 +564,6 @@ const main = async () => {
             gl.drawArrays(gl.TRIANGLES, 0, data.faces)
         })
 
-        // Water
-        gl.bindVertexArray(waterReflectionData.vao)
-        gl.uniform3fv(uDiffuseLoc, waterReflectionData.material.diffuse || [1.0, 1.0, 1.0])
-        // gl.uniform1f(uOpacityLoc, waterReflectionData.material.opacity)
-        // gl.activeTexture(gl.TEXTURE0)
-        // gl.bindTexture(gl.TEXTURE_2D, waterReflectionData.texture)
-        gl.activeTexture(gl.TEXTURE0)
-        gl.bindTexture(gl.TEXTURE_2D, reflectionTexture)
-        gl.drawArrays(gl.TRIANGLES, 0, waterReflectionData.faces)
-
         // Clouds
         gl.disable(gl.CULL_FACE)
         gl.uniformMatrix4fv(uModelLoc, false, m4_y_rotation(landSpin * 2))
@@ -569,6 +574,45 @@ const main = async () => {
         gl.bindTexture(gl.TEXTURE_2D, cloudsMeshData.texture)
         gl.drawArrays(gl.TRIANGLES, 0, cloudsMeshData.faces)
         gl.enable(gl.CULL_FACE)
+
+        // Water
+        gl.useProgram(waterProgram)
+
+        gl.uniformMatrix4fv(uWaterModelLoc, false, landModel)
+        gl.uniformMatrix4fv(uWaterWorldLoc, false, world)
+        gl.uniformMatrix4fv(uWaterViewLoc, false, view)
+        gl.uniformMatrix4fv(uWaterProjectionLoc, false, projection)
+
+        gl.uniform1f(uWaterLightIntensityLoc, lightIntensity)
+
+        gl.uniform3fv(uWaterLightDirectionLoc, lightVector)
+        gl.uniform1i(uWaterReflectionDiffuseMap, 0)
+        // gl.uniform1i(uWaterProjectedTextureLoc, 1)
+        gl.bindVertexArray(waterReflectionData.vao)
+        gl.uniform3fv(uWaterDiffuseLoc, waterReflectionData.material.diffuse || [1.0, 1.0, 1.0])
+        gl.uniform1f(uWaterOpacityLoc, 1)
+        // gl.uniform1f(uWaterOpacityLoc, waterReflectionData.material.opacity)
+        // gl.activeTexture(gl.TEXTURE0)
+        // gl.bindTexture(gl.TEXTURE_2D, waterReflectionData.texture)
+        gl.activeTexture(gl.TEXTURE0)
+        gl.bindTexture(gl.TEXTURE_2D, reflectionTexture)
+        // gl.activeTexture(gl.TEXTURE1)
+        // gl.bindTexture(gl.TEXTURE_2D, null)
+
+        let waterMatrix = m4_identity()
+        waterMatrix = m4_multiply(waterMatrix, m4_translation(0.5, 0.5, 0.5))
+        waterMatrix = m4_multiply(waterMatrix, m4_scaling(0.5, 0.5, 0.5))
+
+        waterMatrix = m4_multiply(waterMatrix, projection)
+        waterMatrix = m4_multiply(waterMatrix, view)
+        let newWorld = m4_identity()
+        // newWorld = m4_multiply(newWorld, m4_x_rotation(landSpin))
+        // newWorld = m4_multiply(newWorld, m4_y_rotation(-landSpin))
+        // newWorld = m4_multiply(newWorld, m4_z_rotation(landSpin))
+        waterMatrix = m4_multiply(waterMatrix, m4_inverse(newWorld))
+        gl.uniformMatrix4fv(uWaterTextureMatrixLoc, false, waterMatrix)
+
+        gl.drawArrays(gl.TRIANGLES, 0, waterReflectionData.faces)
 
         requestAnimationFrame(draw)
     }
