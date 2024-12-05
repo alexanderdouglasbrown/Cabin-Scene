@@ -366,6 +366,20 @@ const main = async () => {
     gl.bindFramebuffer(gl.FRAMEBUFFER, reflectionFrameBuffer)
     gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, reflectionTexture, 0)
 
+    // const waterCenter = [
+    //     6.514844, 0, 0, 0,
+    //     0, 0.698133, 0, 0,
+    //     0, 0, 6.866039, 0,
+    //     0, 0, 0, 1
+    // ]
+
+    const waterCenter = [
+        6.514844, 0.698133, 6.866039, 0,
+        0, 0, 0, 0,
+        0, 0, 0, 0,
+        0, 0, 0, 1
+    ]
+
     //////
     const lightDistance = 25
     const sunScale = 20
@@ -447,14 +461,15 @@ const main = async () => {
 
         // Water Reflection
         gl.useProgram(sceneProgram)
-        const reflectionWorld = m4_identity()
-        const reflectionPos = m4_look_at(camera, [0, 0, 2000], up)
-        // const reflectionView = m4_inverse(m4_look_at(lightPos, [0, 0, 0], [1, 0, 1]))
-        const reflectionView = m4_inverse(m4_look_at([0,0,0], view,  [0, -1, 0]))
-        const reflectionProjection = m4_perspective(degrees_to_radians(95), 1, zNear, zFar)
-        gl.uniformMatrix4fv(uWorldLoc, false, reflectionWorld)
-        gl.uniformMatrix4fv(uViewLoc, false, reflectionView)
-        gl.uniformMatrix4fv(uProjectionLoc, false, reflectionProjection)
+        // const reflectionWorld = m4_identity()
+        // const reflectionMatrix = m4_multiply(waterCenter, world)
+        // const reflectionPos = [reflectionMatrix[0], reflectionMatrix[1], reflectionMatrix[2]]
+        // // const reflectionView = m4_inverse(m4_look_at(lightPos, [0, 0, 0], [1, 0, 1]))
+        // const reflectionView = m4_inverse(m4_look_at(reflectionPos, view, [0, -1, 0]))
+        // const reflectionProjection = m4_perspective(degrees_to_radians(95), 1, zNear, zFar)
+        gl.uniformMatrix4fv(uWorldLoc, false, world)
+        gl.uniformMatrix4fv(uViewLoc, false, (m4_look_at([0, 0.698133, 0], cameraPosition, [0, -1, 0])))
+        gl.uniformMatrix4fv(uProjectionLoc, false, projection)
 
         gl.bindFramebuffer(gl.FRAMEBUFFER, reflectionFrameBuffer)
         gl.viewport(0, 0, reflectionTextureSize, reflectionTextureSize)
