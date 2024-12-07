@@ -42,8 +42,6 @@ const main = async () => {
                 cameraRotationY = 360
             cameraRotationX = cameraRotationX % 360
 
-            console.log(cameraRotationY)
-
             lastMouseX = mouseX
             lastMouseY = mouseY
         }
@@ -157,6 +155,9 @@ const main = async () => {
     const uProjectionLoc = gl.getUniformLocation(sceneProgram, "u_projection")
     const uTextureMatrixLoc = gl.getUniformLocation(sceneProgram, "u_textureMatrix")
 
+    const uIsReflection = gl.getUniformLocation(sceneProgram, "u_isReflection")
+    const uReflectionHeight = gl.getUniformLocation(sceneProgram, "u_reflectionHeight")
+
     const uDiffuseMapLoc = gl.getUniformLocation(sceneProgram, "u_diffuseMap")
     const uProjectedTextureLoc = gl.getUniformLocation(sceneProgram, "u_projectedTexture")
     const uLightDirectionLoc = gl.getUniformLocation(sceneProgram, "u_lightDirection")
@@ -196,7 +197,6 @@ const main = async () => {
     const aWaterNormalLoc = gl.getAttribLocation(waterProgram, "a_normal")
     const aWaterTextureCoordLoc = gl.getAttribLocation(waterProgram, "a_textureCoord")
 
-    const uWaterModelLoc = gl.getUniformLocation(waterProgram, "u_model")
     const uWaterWorldLoc = gl.getUniformLocation(waterProgram, "u_world")
     const uWaterViewLoc = gl.getUniformLocation(waterProgram, "u_view")
     const uWaterProjectionLoc = gl.getUniformLocation(waterProgram, "u_projection")
@@ -364,20 +364,12 @@ const main = async () => {
     const reflectionFrameBuffer = gl.createFramebuffer()
     gl.bindFramebuffer(gl.FRAMEBUFFER, reflectionFrameBuffer)
     gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, reflectionTexture, 0)
+    const reflectionDepthBuffer = gl.createRenderbuffer()
+    gl.bindRenderbuffer(gl.RENDERBUFFER, reflectionDepthBuffer)
+    gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT16, reflectionTextureSize, reflectionTextureSize)
+    gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, reflectionDepthBuffer)
 
-    // const waterCenter = [
-    //     6.514844, 0, 0, 0,
-    //     0, 0.698133, 0, 0,
-    //     0, 0, 6.866039, 0,
-    //     0, 0, 0, 1
-    // ]
-
-    const waterCenter = [
-        6.514844, 0.698133, 6.866039, 0,
-        0, 0, 0, 0,
-        0, 0, 0, 0,
-        0, 0, 0, 1
-    ]
+    const waterHeight = 0.698133
 
     //////
     const lightDistance = 25
@@ -394,6 +386,8 @@ const main = async () => {
     const up = [0, 1, 0]
 
     gl.useProgram(sceneProgram)
+    gl.uniform1f(uIsReflection, false, 0.0)
+    gl.uniform1f(uReflectionHeight, false, waterHeight)
 
     let cameraRotationX = 110
     let cameraRotationY = 290
@@ -461,21 +455,19 @@ const main = async () => {
 
         // Water Reflection
         gl.useProgram(sceneProgram)
-        // const reflectionWorld = m4_identity()
-        // const reflectionMatrix = m4_multiply(waterCenter, world)
-        // const reflectionPos = [reflectionMatrix[0], reflectionMatrix[1], reflectionMatrix[2]]
-        // // const reflectionView = m4_inverse(m4_look_at(lightPos, [0, 0, 0], [1, 0, 1]))
-        // const reflectionView = m4_inverse(m4_look_at(reflectionPos, view, [0, -1, 0]))
-        // const reflectionProjection = m4_perspective(degrees_to_radians(95), 1, zNear, zFar)
-        gl.uniformMatrix4fv(uWorldLoc, false, world)
-        gl.uniformMatrix4fv(uViewLoc, false, (m4_look_at([0, 0.698133, 0], cameraPosition, [0, -1, 0])))
+        gl.uniformMatrix4fv(uWorldLoc, false, landWorld)
+        const reflectedView =  m4_inverse(m4_look_at([cameraPosition[0], cameraPosition[1] * -1, cameraPosition[2]], cameraTarget, up))
+        gl.uniformMatrix4fv(uViewLoc, false, reflectedView)
+        // gl.uniformMatrix4fv(uViewLoc, false, (m4_multiply(m4_reflect(0), m4_inverse(m4_look_at(cameraPosition, cameraTarget, [0, -1, 0])))))
         gl.uniformMatrix4fv(uProjectionLoc, false, projection)
+
+        gl.uniform1f(uIsReflection, 1.0)
 
         gl.bindFramebuffer(gl.FRAMEBUFFER, reflectionFrameBuffer)
         gl.viewport(0, 0, reflectionTextureSize, reflectionTextureSize)
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 
-        gl.uniformMatrix4fv(uModelLoc, false, landModel)
+        gl.uniformMatrix4fv(uWorldLoc, false, landWorld)
         sceneMeshData.forEach(data => {
             gl.bindVertexArray(data.vao)
 
@@ -487,6 +479,7 @@ const main = async () => {
 
             gl.drawArrays(gl.TRIANGLES, 0, data.faces)
         })
+        gl.uniform1f(uIsReflection, 0.0)
 
         // Sun
         gl.useProgram(sunProgram)
@@ -590,8 +583,7 @@ const main = async () => {
         // Water
         gl.useProgram(waterProgram)
 
-        gl.uniformMatrix4fv(uWaterModelLoc, false, landModel)
-        gl.uniformMatrix4fv(uWaterWorldLoc, false, world)
+        gl.uniformMatrix4fv(uWaterWorldLoc, false, landWorld)
         gl.uniformMatrix4fv(uWaterViewLoc, false, view)
         gl.uniformMatrix4fv(uWaterProjectionLoc, false, projection)
 
@@ -616,12 +608,7 @@ const main = async () => {
         waterMatrix = m4_multiply(waterMatrix, m4_scaling(0.5, 0.5, 0.5))
 
         waterMatrix = m4_multiply(waterMatrix, projection)
-        waterMatrix = m4_multiply(waterMatrix, view)
-        let newWorld = m4_identity()
-        // newWorld = m4_multiply(newWorld, m4_x_rotation(landSpin))
-        // newWorld = m4_multiply(newWorld, m4_y_rotation(-landSpin))
-        // newWorld = m4_multiply(newWorld, m4_z_rotation(landSpin))
-        waterMatrix = m4_multiply(waterMatrix, m4_inverse(newWorld))
+        waterMatrix = m4_multiply(waterMatrix, reflectedView)
         gl.uniformMatrix4fv(uWaterTextureMatrixLoc, false, waterMatrix)
 
         gl.drawArrays(gl.TRIANGLES, 0, waterReflectionData.faces)
