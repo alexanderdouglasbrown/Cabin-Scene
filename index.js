@@ -32,15 +32,17 @@ const main = async () => {
             const xFactor = gl.canvas.clientWidth * 0.275
             const yFactor = gl.canvas.clientHeight * 0.275
             if (lastMouseX != null) {
-                cameraRotationX += (mouseY - lastMouseY) * yFactor
-                cameraRotationY += (mouseX - lastMouseX) * xFactor
+                cameraRotationX += (mouseX - lastMouseX) * xFactor
+                cameraRotationY += (mouseY - lastMouseY) * yFactor
             }
 
-            if (cameraRotationX > 90)
-                cameraRotationX = 90
-            if (cameraRotationX < -90)
-                cameraRotationX = -90
-            cameraRotationY = cameraRotationY % 360
+            if (cameraRotationY < 181)
+                cameraRotationY = 181
+            if (cameraRotationY > 360)
+                cameraRotationY = 360
+            cameraRotationX = cameraRotationX % 360
+
+            console.log(cameraRotationY)
 
             lastMouseX = mouseX
             lastMouseY = mouseY
@@ -150,7 +152,6 @@ const main = async () => {
     const aNormalLoc = gl.getAttribLocation(sceneProgram, "a_normal")
     const aTextureCoordLoc = gl.getAttribLocation(sceneProgram, "a_textureCoord")
 
-    const uModelLoc = gl.getUniformLocation(sceneProgram, "u_model")
     const uWorldLoc = gl.getUniformLocation(sceneProgram, "u_world")
     const uViewLoc = gl.getUniformLocation(sceneProgram, "u_view")
     const uProjectionLoc = gl.getUniformLocation(sceneProgram, "u_projection")
@@ -169,7 +170,6 @@ const main = async () => {
     const shadowProgram = createProgram(gl, shadowVertexShader, shadowFragmentShader)
 
     const aShadowPositionLoc = gl.getAttribLocation(shadowProgram, "a_position")
-    const uShadowModelLoc = gl.getUniformLocation(shadowProgram, "u_model")
     const uShadowWorldLoc = gl.getUniformLocation(shadowProgram, "u_world")
     const uShadowViewLoc = gl.getUniformLocation(shadowProgram, "u_view")
     const uShadownProjectionLoc = gl.getUniformLocation(shadowProgram, "u_projection")
@@ -181,7 +181,6 @@ const main = async () => {
 
     const aSunPositionLoc = gl.getAttribLocation(sunProgram, "a_position")
     const aSunTextureCoordLoc = gl.getAttribLocation(sunProgram, "a_textureCoord")
-    const uSunModelLoc = gl.getUniformLocation(sunProgram, "u_model")
     const uSunWorldLoc = gl.getUniformLocation(sunProgram, "u_world")
     const uSunViewLoc = gl.getUniformLocation(sunProgram, "u_view")
     const uSunProjectionLoc = gl.getUniformLocation(sunProgram, "u_projection")
@@ -396,8 +395,8 @@ const main = async () => {
 
     gl.useProgram(sceneProgram)
 
-    let cameraRotationX = 20
-    let cameraRotationY = 200
+    let cameraRotationX = 110
+    let cameraRotationY = 290
 
     const draw = frameTime => {
         // Handle resize
@@ -420,15 +419,18 @@ const main = async () => {
 
         const lightVector = normalize(lightPos)
 
-        const cameraPosition = [0, 0, cameraDistance]
+        // const cameraPosition = [m4_x_rotation(degrees_to_radians(cameraRotationX)), m4_y_rotation(degrees_to_radians(cameraRotationY)), cameraDistance]
+        const cameraX = Math.sin(degrees_to_radians(cameraRotationY)) * Math.cos(degrees_to_radians(cameraRotationX)) * cameraDistance
+        const cameraY = Math.cos(degrees_to_radians(cameraRotationY)) * cameraDistance
+        const cameraZ = Math.sin(degrees_to_radians(cameraRotationY)) * Math.sin(degrees_to_radians(cameraRotationX)) * cameraDistance
+        const cameraPosition = [cameraX, cameraY, cameraZ]
         const camera = m4_look_at(cameraPosition, cameraTarget, up)
         const view = m4_inverse(camera)
 
         const projection = m4_perspective(fov, aspect, zNear, zFar)
-        const world = m4_multiply(m4_x_rotation(degrees_to_radians(cameraRotationX)), m4_y_rotation((degrees_to_radians(cameraRotationY))))
 
         const landSpin = (frameTime || 1) * 0.000025
-        const landModel = m4_y_rotation(landSpin)
+        const landWorld = m4_y_rotation(landSpin)
 
         // Sky color
         const skyColor = getSkyColor(lightAngle)
@@ -437,10 +439,9 @@ const main = async () => {
 
         // Shadow
         gl.useProgram(shadowProgram)
-        const shadowWorld = m4_identity()
         const shadowView = m4_inverse(m4_look_at(lightPos, cameraTarget, up))
         const shadowProjection = m4_perspective(degrees_to_radians(95), 1, zNear, zFar)
-        gl.uniformMatrix4fv(uShadowWorldLoc, false, shadowWorld)
+        gl.uniformMatrix4fv(uShadowWorldLoc, false, landWorld)
         gl.uniformMatrix4fv(uShadowViewLoc, false, shadowView)
         gl.uniformMatrix4fv(uShadownProjectionLoc, false, shadowProjection)
 
@@ -448,7 +449,6 @@ const main = async () => {
         gl.viewport(0, 0, depthTextureSize, depthTextureSize)
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 
-        gl.uniformMatrix4fv(uShadowModelLoc, false, landModel)
         sceneMeshData.forEach(data => {
             gl.bindVertexArray(data.shadowVAO)
 
@@ -490,10 +490,9 @@ const main = async () => {
 
         // Sun
         gl.useProgram(sunProgram)
-        gl.uniformMatrix4fv(uSunWorldLoc, false, world)
+
         gl.uniformMatrix4fv(uSunViewLoc, false, view)
         gl.uniformMatrix4fv(uSunProjectionLoc, false, projection)
-
         gl.uniform1f(uSunLightIntensityLoc, lightIntensity)
 
         // Blender's exported default rotation was not ideal
@@ -503,15 +502,15 @@ const main = async () => {
 
         // Order matters -- scale, rotate, transform (SRT) order, but also you apply it in reverse
         const sunPos = [lightVector[0] * sunDistance, lightVector[1] * sunDistance, lightVector[2] * sunDistance]
-        let sunModel = m4_identity()
-        sunModel = m4_multiply(sunModel, m4_translation(sunPos[0], sunPos[1], sunPos[2]))
-        sunModel = m4_multiply(sunModel, m4_look_at(sunPos, [0.0, 0.0, 0.0], up))
-        sunModel = m4_multiply(sunModel, m4_z_rotation(sunRotateZ))
-        sunModel = m4_multiply(sunModel, m4_y_rotation(sunRotateY))
-        sunModel = m4_multiply(sunModel, m4_x_rotation(sunRotateX))
-        sunModel = m4_multiply(sunModel, m4_scaling(sunScale, sunScale, sunScale))
+        let sunWorld = m4_identity()
+        sunWorld = m4_multiply(sunWorld, m4_translation(sunPos[0], sunPos[1], sunPos[2]))
+        sunWorld = m4_multiply(sunWorld, m4_look_at(sunPos, [0.0, 0.0, 0.0], up))
+        sunWorld = m4_multiply(sunWorld, m4_z_rotation(sunRotateZ))
+        sunWorld = m4_multiply(sunWorld, m4_y_rotation(sunRotateY))
+        sunWorld = m4_multiply(sunWorld, m4_x_rotation(sunRotateX))
+        sunWorld = m4_multiply(sunWorld, m4_scaling(sunScale, sunScale, sunScale))
 
-        gl.uniformMatrix4fv(uSunModelLoc, false, sunModel)
+        gl.uniformMatrix4fv(uSunWorldLoc, false, sunWorld)
 
         const drawSun = () => {
             sunMeshData.forEach(data => {
@@ -543,8 +542,7 @@ const main = async () => {
         //Scene
         gl.useProgram(sceneProgram)
 
-        gl.uniformMatrix4fv(uModelLoc, false, landModel)
-        gl.uniformMatrix4fv(uWorldLoc, false, world)
+        gl.uniformMatrix4fv(uWorldLoc, false, landWorld)
         gl.uniformMatrix4fv(uViewLoc, false, view)
         gl.uniformMatrix4fv(uProjectionLoc, false, projection)
 
@@ -560,7 +558,6 @@ const main = async () => {
 
         textureMatrix = m4_multiply(textureMatrix, shadowProjection)
         textureMatrix = m4_multiply(textureMatrix, shadowView)
-        textureMatrix = m4_multiply(textureMatrix, m4_inverse(world))
 
         gl.uniformMatrix4fv(uTextureMatrixLoc, false, textureMatrix)
 
@@ -581,7 +578,7 @@ const main = async () => {
 
         // Clouds
         gl.disable(gl.CULL_FACE)
-        gl.uniformMatrix4fv(uModelLoc, false, m4_y_rotation(landSpin * 2))
+        gl.uniformMatrix4fv(uWorldLoc, false, m4_y_rotation(landSpin * 2))
         gl.bindVertexArray(cloudsMeshData.vao)
         gl.uniform3fv(uDiffuseLoc, cloudsMeshData.material.diffuse || [1.0, 1.0, 1.0])
         gl.uniform1f(uOpacityLoc, cloudsMeshData.material.opacity)
