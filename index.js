@@ -361,12 +361,14 @@ const main = async () => {
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, reflectionTextureSize, reflectionTextureSize, 0, gl.RGBA, gl.UNSIGNED_BYTE, null)
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
     const reflectionFrameBuffer = gl.createFramebuffer()
     gl.bindFramebuffer(gl.FRAMEBUFFER, reflectionFrameBuffer)
     gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, reflectionTexture, 0)
     const reflectionDepthBuffer = gl.createRenderbuffer()
     gl.bindRenderbuffer(gl.RENDERBUFFER, reflectionDepthBuffer)
-    gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT16, reflectionTextureSize, reflectionTextureSize)
+    gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT32F, reflectionTextureSize, reflectionTextureSize)
     gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, reflectionDepthBuffer)
 
     const waterHeight = 0.698133
@@ -401,10 +403,10 @@ const main = async () => {
             isInitialSetSize = false
         }
 
-        let lightAngle = 100
-        // let lightAngle = (-10 + (frameTime || 1) * 0.02) % 360
-        // if (lightAngle < 0)
-        //     lightAngle += 360
+        // let lightAngle = 170
+        let lightAngle = (-10 + (frameTime || 1) * 0.002) % 360
+        if (lightAngle < 0)
+            lightAngle += 360
 
         let lightPosMatrix = m4_identity()
         lightPosMatrix = m4_multiply(lightPosMatrix, m4_z_rotation(degrees_to_radians(lightAngle)))
@@ -413,7 +415,6 @@ const main = async () => {
 
         const lightVector = normalize(lightPos)
 
-        // const cameraPosition = [m4_x_rotation(degrees_to_radians(cameraRotationX)), m4_y_rotation(degrees_to_radians(cameraRotationY)), cameraDistance]
         const cameraX = Math.sin(degrees_to_radians(cameraRotationY)) * Math.cos(degrees_to_radians(cameraRotationX)) * cameraDistance
         const cameraY = Math.cos(degrees_to_radians(cameraRotationY)) * cameraDistance
         const cameraZ = Math.sin(degrees_to_radians(cameraRotationY)) * Math.sin(degrees_to_radians(cameraRotationX)) * cameraDistance
@@ -456,9 +457,8 @@ const main = async () => {
         // Water Reflection
         gl.useProgram(sceneProgram)
         gl.uniformMatrix4fv(uWorldLoc, false, landWorld)
-        const reflectedView =  m4_inverse(m4_look_at([cameraPosition[0], cameraPosition[1] * -1, cameraPosition[2]], cameraTarget, up))
+        const reflectedView = m4_inverse(m4_look_at([cameraPosition[0], cameraPosition[1] * -1, cameraPosition[2]], cameraTarget, up))
         gl.uniformMatrix4fv(uViewLoc, false, reflectedView)
-        // gl.uniformMatrix4fv(uViewLoc, false, (m4_multiply(m4_reflect(0), m4_inverse(m4_look_at(cameraPosition, cameraTarget, [0, -1, 0])))))
         gl.uniformMatrix4fv(uProjectionLoc, false, projection)
 
         gl.uniform1f(uIsReflection, 1.0)
@@ -496,8 +496,8 @@ const main = async () => {
         // Order matters -- scale, rotate, transform (SRT) order, but also you apply it in reverse
         const sunPos = [lightVector[0] * sunDistance, lightVector[1] * sunDistance, lightVector[2] * sunDistance]
         let sunWorld = m4_identity()
-        sunWorld = m4_multiply(sunWorld, m4_translation(sunPos[0], sunPos[1], sunPos[2]))
-        sunWorld = m4_multiply(sunWorld, m4_look_at(sunPos, [0.0, 0.0, 0.0], up))
+        sunWorld = m4_multiply(sunWorld, m4_translation(sunPos[0], sunPos[1] * -2, sunPos[2]))
+        sunWorld = m4_multiply(sunWorld, m4_look_at([sunPos[0], sunPos[1] * -1, sunPos[2]], [0.0, 0.0, 0.0], up))
         sunWorld = m4_multiply(sunWorld, m4_z_rotation(sunRotateZ))
         sunWorld = m4_multiply(sunWorld, m4_y_rotation(sunRotateY))
         sunWorld = m4_multiply(sunWorld, m4_x_rotation(sunRotateX))
@@ -526,6 +526,14 @@ const main = async () => {
         }
         drawSun()
 
+        sunWorld = m4_identity()
+        sunWorld = m4_multiply(sunWorld, m4_translation(sunPos[0], sunPos[1], sunPos[2]))
+        sunWorld = m4_multiply(sunWorld, m4_look_at(sunPos, [0.0, 0.0, 0.0], up))
+        sunWorld = m4_multiply(sunWorld, m4_z_rotation(sunRotateZ))
+        sunWorld = m4_multiply(sunWorld, m4_y_rotation(sunRotateY))
+        sunWorld = m4_multiply(sunWorld, m4_x_rotation(sunRotateX))
+        sunWorld = m4_multiply(sunWorld, m4_scaling(sunScale, sunScale, sunScale))
+        gl.uniformMatrix4fv(uSunWorldLoc, false, sunWorld)
         gl.bindFramebuffer(gl.FRAMEBUFFER, null)
         gl.viewport(0, 0, gl.canvas.width, gl.canvas.height)
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)

@@ -15,8 +15,8 @@ uniform float u_reflectionHeight;
 out vec3 v_normal;
 out vec2 v_textureCoord;
 out vec4 v_projectedTextureCoord;
-out float v_isReflection;
-out float v_clipDistance;
+
+flat out int v_isDiscard;
 
 void main() {
     gl_Position = u_projection * u_view * u_world * a_position;
@@ -25,7 +25,5 @@ void main() {
     v_textureCoord = a_textureCoord;
     v_projectedTextureCoord = u_textureMatrix * u_world * a_position;
 
-    v_isReflection = u_isReflection;
-    vec4 worldPos = u_world * a_position;
-    v_clipDistance = dot(worldPos.xyz, vec3(0.0, 1.0, 0.0)) - u_reflectionHeight;
+    v_isDiscard = (u_isReflection == 1.0 && (u_world * a_position).y < u_reflectionHeight) ? 1 : 0;
 }

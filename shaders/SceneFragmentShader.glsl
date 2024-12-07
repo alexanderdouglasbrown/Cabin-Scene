@@ -5,8 +5,7 @@ in vec3 v_normal;
 in vec2 v_textureCoord;
 in vec4 v_projectedTextureCoord;
 
-in float v_isReflection;
-in float v_clipDistance;
+flat in int v_isDiscard;
 
 uniform vec3 u_lightDirection; // normalized
 uniform float u_lightIntensity;
@@ -20,14 +19,13 @@ uniform float u_opacity;
 out vec4 outColor;
 
 void main() {
-    if (v_isReflection == 1.0 && v_clipDistance < 0.001)
+    if (v_isDiscard == 1)
         discard;
 
     float light = max(dot(v_normal, u_lightDirection) * 0.5 + 0.75, 0.0);
 
     vec3 projectedTextureCoord = v_projectedTextureCoord.xyz / v_projectedTextureCoord.w;
     float currentDepth = projectedTextureCoord.z - 0.0001;
-
 
     float projectedDepth = texture(u_projectedTexture, projectedTextureCoord.xy).r;
     float shadow = (projectedTextureCoord.z >= 0.0 && projectedTextureCoord.z <= 1.0 && projectedDepth <= currentDepth) ? 0.5 : 1.0;
