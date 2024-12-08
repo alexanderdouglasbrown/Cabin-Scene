@@ -9,8 +9,9 @@ uniform vec3 u_lightDirection; // normalized
 uniform float u_lightIntensity;
 
 uniform sampler2D u_reflectionDiffuseMap;
+uniform sampler2D u_diffuseMap;
+uniform sampler2D u_shadowDiffuseMap;
 
-uniform vec3 u_diffuse;
 uniform float u_opacity;
 
 out vec4 outColor;
@@ -19,14 +20,19 @@ void main() {
     float light = max(dot(v_normal, u_lightDirection) * 0.5 + 0.75, 0.0);
 
     vec3 projectedTextureCoord = v_projectedTextureCoord.xyz / v_projectedTextureCoord.w;
+    float currentDepth = projectedTextureCoord.z - 0.0001;
 
-    vec4 diffuseMapColor = texture(u_reflectionDiffuseMap, projectedTextureCoord.xy);
+    float projectedDepth = texture(u_shadowDiffuseMap, projectedTextureCoord.xy).r;
+    float shadow = (projectedTextureCoord.z >= 0.0 && projectedTextureCoord.z <= 1.0 && projectedDepth <= currentDepth) ? 0.5 : 1.0;
 
-    vec3 finalDiffuse = u_diffuse * diffuseMapColor.rgb;
-    float finalOpacity = u_opacity * diffuseMapColor.a;
+    vec4 reflectionDiffuseMapColor = texture(u_reflectionDiffuseMap, projectedTextureCoord.xy);
+    vec4 diffuseMapColor = texture(u_diffuseMap, v_textureCoord);
+
+    vec3 finalDiffuse = mix(reflectionDiffuseMapColor, diffuseMapColor, 0.25).rgb * 1.25 ;
+    float finalOpacity = u_opacity;
 
     outColor = vec4(
-        finalDiffuse * light * u_lightIntensity,
+        finalDiffuse * light * shadow * u_lightIntensity,
         finalOpacity
     );
 }

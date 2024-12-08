@@ -202,12 +202,12 @@ const main = async () => {
     const uWaterProjectionLoc = gl.getUniformLocation(waterProgram, "u_projection")
     const uWaterTextureMatrixLoc = gl.getUniformLocation(waterProgram, "u_textureMatrix")
 
-    // const uWaterDiffuseMapLoc = gl.getUniformLocation(waterProgram, "u_diffuseMap")
-    // const uWaterProjectedTextureLoc = gl.getUniformLocation(waterProgram, "u_projectedTexture")
     const uWaterReflectionDiffuseMap = gl.getUniformLocation(waterProgram, "u_reflectionDiffuseMap")
+    const uWaterDiffuseMapLoc = gl.getUniformLocation(waterProgram, "u_diffuseMap")
+    const uWaterShadowDiffuseMapLoc = gl.getUniformLocation(waterProgram, "u_projectedTexture")
+
     const uWaterLightDirectionLoc = gl.getUniformLocation(waterProgram, "u_lightDirection")
     const uWaterLightIntensityLoc = gl.getUniformLocation(waterProgram, "u_lightIntensity")
-    const uWaterDiffuseLoc = gl.getUniformLocation(waterProgram, "u_diffuse")
     const uWaterOpacityLoc = gl.getUniformLocation(waterProgram, "u_opacity")
 
     // Load models
@@ -450,10 +450,6 @@ const main = async () => {
             gl.drawArrays(gl.TRIANGLES, 0, data.faces)
         })
 
-        // gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-        // gl.viewport(0, 0, gl.canvas.width, gl.canvas.height)
-        // gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
-
         // Water Reflection
         gl.useProgram(sceneProgram)
         gl.uniformMatrix4fv(uWorldLoc, false, landWorld)
@@ -564,7 +560,7 @@ const main = async () => {
 
         sceneMeshData.forEach(data => {
             gl.bindVertexArray(data.vao)
-
+            
             gl.uniform3fv(uDiffuseLoc, data.material.diffuse || [1.0, 1.0, 1.0])
 
             gl.uniform1f(uOpacityLoc, data.material.opacity)
@@ -599,17 +595,17 @@ const main = async () => {
 
         gl.uniform3fv(uWaterLightDirectionLoc, lightVector)
         gl.uniform1i(uWaterReflectionDiffuseMap, 0)
-        // gl.uniform1i(uWaterProjectedTextureLoc, 1)
+        gl.uniform1i(uWaterDiffuseMapLoc, 1)
+        gl.uniform1i(uWaterShadowDiffuseMapLoc, 2)
         gl.bindVertexArray(waterReflectionData.vao)
-        gl.uniform3fv(uWaterDiffuseLoc, waterReflectionData.material.diffuse || [1.0, 1.0, 1.0])
         gl.uniform1f(uWaterOpacityLoc, 1)
-        // gl.uniform1f(uWaterOpacityLoc, waterReflectionData.material.opacity)
-        // gl.activeTexture(gl.TEXTURE0)
-        // gl.bindTexture(gl.TEXTURE_2D, waterReflectionData.texture)
         gl.activeTexture(gl.TEXTURE0)
         gl.bindTexture(gl.TEXTURE_2D, reflectionTexture)
-        // gl.activeTexture(gl.TEXTURE1)
-        // gl.bindTexture(gl.TEXTURE_2D, null)
+        gl.uniform1f(uWaterOpacityLoc, waterReflectionData.material.opacity)
+        gl.activeTexture(gl.TEXTURE1)
+        gl.bindTexture(gl.TEXTURE_2D, waterReflectionData.texture)
+        gl.activeTexture(gl.TEXTURE2)
+        gl.bindTexture(gl.TEXTURE_2D, depthTexture)
 
         let waterMatrix = m4_identity()
         waterMatrix = m4_multiply(waterMatrix, m4_translation(0.5, 0.5, 0.5))
