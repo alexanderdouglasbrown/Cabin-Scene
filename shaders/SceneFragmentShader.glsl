@@ -5,10 +5,13 @@ in vec3 v_normal;
 in vec2 v_textureCoord;
 in vec4 v_projectedTextureCoord;
 
-flat in int v_isDiscard;
+in vec3 v_worldPosition;
 
 uniform vec3 u_lightDirection; // normalized
 uniform float u_lightIntensity;
+
+uniform float u_isReflection;
+uniform float u_reflectionHeight;
 
 uniform sampler2D u_diffuseMap;
 uniform sampler2D u_projectedTexture;
@@ -19,7 +22,7 @@ uniform float u_opacity;
 out vec4 outColor;
 
 void main() {
-    if (v_isDiscard == 1)
+    if (u_isReflection > 0.5 && v_worldPosition.y < u_reflectionHeight)
         discard;
 
     float light = max(dot(v_normal, u_lightDirection) * 0.5 + 0.75, 0.0);

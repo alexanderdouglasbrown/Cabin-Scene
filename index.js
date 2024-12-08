@@ -375,8 +375,6 @@ const main = async () => {
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, reflectionTextureSize, reflectionTextureSize, 0, gl.RGBA, gl.UNSIGNED_BYTE, null)
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
     const reflectionFrameBuffer = gl.createFramebuffer()
     gl.bindFramebuffer(gl.FRAMEBUFFER, reflectionFrameBuffer)
     gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, reflectionTexture, 0)
@@ -402,8 +400,8 @@ const main = async () => {
     const up = [0, 1, 0]
 
     gl.useProgram(sceneProgram)
-    gl.uniform1f(uIsReflection, false, 0.0)
-    gl.uniform1f(uReflectionHeight, false, waterHeight)
+    gl.uniform1f(uIsReflection, 0.0)
+    gl.uniform1f(uReflectionHeight, waterHeight)
 
     let cameraRotationX = 110
     let cameraRotationY = 290
@@ -417,10 +415,11 @@ const main = async () => {
             isInitialSetSize = false
         }
 
-        // let lightAngle = 150
+        // let lightAngle = 120
         let lightAngle = (-10 + (frameTime || 1) * 0.002) % 360
         if (lightAngle < 0)
             lightAngle += 360
+        console.log(lightAngle)
 
         let lightPosMatrix = m4_identity()
         lightPosMatrix = m4_multiply(lightPosMatrix, m4_z_rotation(degrees_to_radians(lightAngle)))
@@ -467,7 +466,9 @@ const main = async () => {
         // Water Reflection
         gl.useProgram(sceneProgram)
         gl.uniformMatrix4fv(uWorldLoc, false, landWorld)
-        const reflectedView = m4_inverse(m4_look_at([cameraPosition[0], cameraPosition[1] * -1, cameraPosition[2]], cameraTarget, up))
+        let reflectedView = m4_look_at([cameraPosition[0], cameraPosition[1] * -1, cameraPosition[2]], cameraTarget, up)
+        reflectedView = m4_multiply(reflectedView, m4_translation(0, 2 * waterHeight, 0))
+        reflectedView = m4_inverse(reflectedView)
         gl.uniformMatrix4fv(uViewLoc, false, reflectedView)
         gl.uniformMatrix4fv(uProjectionLoc, false, projection)
 
@@ -537,7 +538,6 @@ const main = async () => {
         drawSun()
 
         gl.uniformMatrix4fv(uSunViewLoc, false, view)
-
         gl.bindFramebuffer(gl.FRAMEBUFFER, null)
         gl.viewport(0, 0, gl.canvas.width, gl.canvas.height)
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
@@ -593,45 +593,36 @@ const main = async () => {
         gl.enable(gl.CULL_FACE)
 
         // Sky Sphere
-        // gl.disable(gl.CULL_FACE)
-        // gl.useProgram(skySphereProgram)
+        gl.useProgram(skySphereProgram)
 
-        // gl.uniformMatrix4fv(uSkySphereProjectionLoc, false, projection)
-        // gl.uniformMatrix4fv(uSkySphereViewLoc, false, view)
+        gl.uniformMatrix4fv(uSkySphereProjectionLoc, false, projection)
+        gl.uniformMatrix4fv(uSkySphereViewLoc, false, view)
 
-        // const skySphereScale = 1000.0
-        // let skySphereWorld = m4_identity()
-        // skySphereWorld = m4_multiply(skySphereWorld, m4_translation(cameraPosition[0], cameraPosition[1], cameraPosition[2]))
-        // skySphereWorld = m4_multiply(skySphereWorld, m4_scaling(skySphereScale, skySphereScale, skySphereScale))
-        // gl.uniformMatrix4fv(uSkySphereWorldLoc, false, skySphereWorld)
+        const skySphereScale = 1000.0
+        let skySphereWorld = m4_identity()
+        skySphereWorld = m4_multiply(skySphereWorld, m4_translation(cameraPosition[0], cameraPosition[1], cameraPosition[2]))
+        skySphereWorld = m4_multiply(skySphereWorld, m4_scaling(skySphereScale, skySphereScale, skySphereScale))
+        gl.uniformMatrix4fv(uSkySphereWorldLoc, false, skySphereWorld)
 
-        // skySphereData.forEach(data => {
-        //     gl.bindVertexArray(data.vao)
+        skySphereData.forEach(data => {
+            gl.bindVertexArray(data.vao)
 
-        //     gl.activeTexture(gl.TEXTURE0)
-        //     gl.bindTexture(gl.TEXTURE_2D, data.texture)
+            gl.activeTexture(gl.TEXTURE0)
+            gl.bindTexture(gl.TEXTURE_2D, data.texture)
 
-        //     gl.drawArrays(gl.TRIANGLES, 0, data.faces)
-        // })
+            gl.drawArrays(gl.TRIANGLES, 0, data.faces)
+        })
 
-        // gl.bindFramebuffer(gl.FRAMEBUFFER, reflectionFrameBuffer)
-        // skySphereWorld = m4_multiply(skySphereWorld, m4_scaling(1.0, -1.0, 1.0))
-        // gl.uniformMatrix4fv(uSkySphereWorldLoc, false, skySphereWorld)
+        gl.bindFramebuffer(gl.FRAMEBUFFER, reflectionFrameBuffer)
+        gl.viewport(0, 0, reflectionTextureSize, reflectionTextureSize)
+        gl.uniformMatrix4fv(uSkySphereViewLoc, false, reflectedView)
+        skySphereData.forEach(data => {
+            gl.bindVertexArray(data.vao)
 
-        // gl.viewport(0, 0, reflectionTextureSize, reflectionTextureSize)
-        // gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
-        // skySphereData.forEach(data => {
-        //     gl.bindVertexArray(data.vao)
-
-        //     // gl.activeTexture(gl.TEXTURE0)
-        //     // gl.bindTexture(gl.TEXTURE_2D, data.texture)
-
-        //     gl.drawArrays(gl.TRIANGLES, 0, data.faces)
-        // })
-        // gl.bindFramebuffer(gl.FRAMEBUFFER, null)
-        // gl.viewport(0, 0, gl.canvas.width, gl.canvas.height)
-        // gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
-        // gl.enable(gl.CULL_FACE)
+            gl.drawArrays(gl.TRIANGLES, 0, data.faces)
+        })
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null)
+        gl.viewport(0, 0, gl.canvas.width, gl.canvas.height)
 
         // Water
         gl.useProgram(waterProgram)
