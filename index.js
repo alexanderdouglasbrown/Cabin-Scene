@@ -188,6 +188,17 @@ const main = async () => {
 
     const uSunLightIntensityLoc = gl.getUniformLocation(sunProgram, "u_lightIntensity")
 
+    // Sky Sphere shader
+    const skySphereVertexShader = createShader(gl, gl.VERTEX_SHADER, await (await fetch(`shaders/SkySphereVertexShader.glsl`)).text())
+    const skySphereFragmentShader = createShader(gl, gl.FRAGMENT_SHADER, await (await fetch(`shaders/SkySphereFragmentShader.glsl`)).text())
+    const skySphereProgram = createProgram(gl, skySphereVertexShader, skySphereFragmentShader)
+
+    const aSkySpherePositionLoc = gl.getAttribLocation(skySphereProgram, "a_position")
+    const aSkySphereTextureCoordLoc = gl.getAttribLocation(skySphereProgram, "a_textureCoord")
+    const uSkySphereWorldLoc = gl.getUniformLocation(skySphereProgram, "u_world")
+    const uSkySphereViewLoc = gl.getUniformLocation(skySphereProgram, "u_view")
+    const uSkySphereProjectionLoc = gl.getUniformLocation(skySphereProgram, "u_projection")
+
     // Water shader
     const waterVertexShader = createShader(gl, gl.VERTEX_SHADER, await (await fetch(`shaders/WaterVertexShader.glsl`)).text())
     const waterFragmentShader = createShader(gl, gl.FRAGMENT_SHADER, await (await fetch(`shaders/WaterFragmentShader.glsl`)).text())
@@ -219,6 +230,8 @@ const main = async () => {
 
     const waterMesh = new Map([["Water", sceneMesh.get("Water")]])
     sceneMesh.delete("Water")
+
+    const skySphereMesh = await objLoader('./models', 'skysphere')
 
     const sunMesh = await objLoader('./models', 'sun')
 
@@ -338,6 +351,7 @@ const main = async () => {
     const cloudsMeshData = newMeshDataArray(cloudsMesh, aPositionLoc, aNormalLoc, aTextureCoordLoc)[0]
     const waterReflectionData = newMeshDataArray(waterMesh, aWaterPositionLoc, aWaterNormalLoc, aWaterTextureCoordLoc)[0]
     const sunMeshData = newMeshDataArray(sunMesh, aSunPositionLoc, null, aSunTextureCoordLoc)
+    const skySphereData = newMeshDataArray(skySphereMesh, aSkySpherePositionLoc, null, aSkySphereTextureCoordLoc)
     const sleepySunTexture = loadTexture('./models/sleepy-sun.png')
     const moonTexture = loadTexture('./models/moon.png')
 
@@ -403,7 +417,7 @@ const main = async () => {
             isInitialSetSize = false
         }
 
-        // let lightAngle = 170
+        // let lightAngle = 150
         let lightAngle = (-10 + (frameTime || 1) * 0.002) % 360
         if (lightAngle < 0)
             lightAngle += 360
@@ -424,7 +438,7 @@ const main = async () => {
 
         const projection = m4_perspective(fov, aspect, zNear, zFar)
 
-        const landSpin = (frameTime || 1) * 0.000025
+        const landSpin = (frameTime || 1) * -0.000025
         const landWorld = m4_y_rotation(landSpin)
 
         // Sky color
@@ -480,7 +494,7 @@ const main = async () => {
         // Sun
         gl.useProgram(sunProgram)
 
-        gl.uniformMatrix4fv(uSunViewLoc, false, view)
+        gl.uniformMatrix4fv(uSunViewLoc, false, reflectedView)
         gl.uniformMatrix4fv(uSunProjectionLoc, false, projection)
         gl.uniform1f(uSunLightIntensityLoc, lightIntensity)
 
@@ -492,13 +506,13 @@ const main = async () => {
         // Order matters -- scale, rotate, transform (SRT) order, but also you apply it in reverse
         const sunPos = [lightVector[0] * sunDistance, lightVector[1] * sunDistance, lightVector[2] * sunDistance]
         let sunWorld = m4_identity()
-        sunWorld = m4_multiply(sunWorld, m4_translation(sunPos[0], sunPos[1] * -2, sunPos[2]))
-        sunWorld = m4_multiply(sunWorld, m4_look_at([sunPos[0], sunPos[1] * -1, sunPos[2]], [0.0, 0.0, 0.0], up))
+        sunWorld = m4_multiply(sunWorld, m4_translation(sunPos[0], sunPos[1], sunPos[2]))
+        sunWorld = m4_multiply(sunWorld, m4_translation(cameraPosition[0], cameraPosition[1], cameraPosition[2]))
+        sunWorld = m4_multiply(sunWorld, m4_look_at(sunPos, [0.0, 0.0, 0.0], up))
         sunWorld = m4_multiply(sunWorld, m4_z_rotation(sunRotateZ))
         sunWorld = m4_multiply(sunWorld, m4_y_rotation(sunRotateY))
         sunWorld = m4_multiply(sunWorld, m4_x_rotation(sunRotateX))
         sunWorld = m4_multiply(sunWorld, m4_scaling(sunScale, sunScale, sunScale))
-
         gl.uniformMatrix4fv(uSunWorldLoc, false, sunWorld)
 
         const drawSun = () => {
@@ -522,14 +536,8 @@ const main = async () => {
         }
         drawSun()
 
-        sunWorld = m4_identity()
-        sunWorld = m4_multiply(sunWorld, m4_translation(sunPos[0], sunPos[1], sunPos[2]))
-        sunWorld = m4_multiply(sunWorld, m4_look_at(sunPos, [0.0, 0.0, 0.0], up))
-        sunWorld = m4_multiply(sunWorld, m4_z_rotation(sunRotateZ))
-        sunWorld = m4_multiply(sunWorld, m4_y_rotation(sunRotateY))
-        sunWorld = m4_multiply(sunWorld, m4_x_rotation(sunRotateX))
-        sunWorld = m4_multiply(sunWorld, m4_scaling(sunScale, sunScale, sunScale))
-        gl.uniformMatrix4fv(uSunWorldLoc, false, sunWorld)
+        gl.uniformMatrix4fv(uSunViewLoc, false, view)
+
         gl.bindFramebuffer(gl.FRAMEBUFFER, null)
         gl.viewport(0, 0, gl.canvas.width, gl.canvas.height)
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
@@ -560,7 +568,7 @@ const main = async () => {
 
         sceneMeshData.forEach(data => {
             gl.bindVertexArray(data.vao)
-            
+
             gl.uniform3fv(uDiffuseLoc, data.material.diffuse || [1.0, 1.0, 1.0])
 
             gl.uniform1f(uOpacityLoc, data.material.opacity)
@@ -583,6 +591,47 @@ const main = async () => {
         gl.bindTexture(gl.TEXTURE_2D, cloudsMeshData.texture)
         gl.drawArrays(gl.TRIANGLES, 0, cloudsMeshData.faces)
         gl.enable(gl.CULL_FACE)
+
+        // Sky Sphere
+        // gl.disable(gl.CULL_FACE)
+        // gl.useProgram(skySphereProgram)
+
+        // gl.uniformMatrix4fv(uSkySphereProjectionLoc, false, projection)
+        // gl.uniformMatrix4fv(uSkySphereViewLoc, false, view)
+
+        // const skySphereScale = 1000.0
+        // let skySphereWorld = m4_identity()
+        // skySphereWorld = m4_multiply(skySphereWorld, m4_translation(cameraPosition[0], cameraPosition[1], cameraPosition[2]))
+        // skySphereWorld = m4_multiply(skySphereWorld, m4_scaling(skySphereScale, skySphereScale, skySphereScale))
+        // gl.uniformMatrix4fv(uSkySphereWorldLoc, false, skySphereWorld)
+
+        // skySphereData.forEach(data => {
+        //     gl.bindVertexArray(data.vao)
+
+        //     gl.activeTexture(gl.TEXTURE0)
+        //     gl.bindTexture(gl.TEXTURE_2D, data.texture)
+
+        //     gl.drawArrays(gl.TRIANGLES, 0, data.faces)
+        // })
+
+        // gl.bindFramebuffer(gl.FRAMEBUFFER, reflectionFrameBuffer)
+        // skySphereWorld = m4_multiply(skySphereWorld, m4_scaling(1.0, -1.0, 1.0))
+        // gl.uniformMatrix4fv(uSkySphereWorldLoc, false, skySphereWorld)
+
+        // gl.viewport(0, 0, reflectionTextureSize, reflectionTextureSize)
+        // gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
+        // skySphereData.forEach(data => {
+        //     gl.bindVertexArray(data.vao)
+
+        //     // gl.activeTexture(gl.TEXTURE0)
+        //     // gl.bindTexture(gl.TEXTURE_2D, data.texture)
+
+        //     gl.drawArrays(gl.TRIANGLES, 0, data.faces)
+        // })
+        // gl.bindFramebuffer(gl.FRAMEBUFFER, null)
+        // gl.viewport(0, 0, gl.canvas.width, gl.canvas.height)
+        // gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
+        // gl.enable(gl.CULL_FACE)
 
         // Water
         gl.useProgram(waterProgram)
