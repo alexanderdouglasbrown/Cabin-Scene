@@ -26,13 +26,13 @@ void main() {
     float shadow = (projectedTextureCoord.z >= 0.0 && projectedTextureCoord.z <= 1.0 && projectedDepth <= currentDepth) ? 0.5 : 1.0;
 
     vec4 reflectionDiffuseMapColor = texture(u_reflectionDiffuseMap, projectedTextureCoord.xy);
-    vec4 diffuseMapColor = texture(u_diffuseMap, v_textureCoord);
+    vec4 diffuseMapColor = texture(u_diffuseMap, v_textureCoord) * shadow * light * u_lightIntensity;
 
-    vec3 finalDiffuse = mix(reflectionDiffuseMapColor, diffuseMapColor, 0.25).rgb * 1.25 ;
+    vec3 finalDiffuse = mix(reflectionDiffuseMapColor * 0.8, diffuseMapColor, 0.25).rgb;
     float finalOpacity = u_opacity;
 
     outColor = vec4(
-        finalDiffuse * light * shadow * u_lightIntensity,
+        finalDiffuse,
         finalOpacity
     );
 }

@@ -501,6 +501,8 @@ const main = async () => {
 
             gl.activeTexture(gl.TEXTURE0)
             gl.bindTexture(gl.TEXTURE_2D, data.texture)
+            gl.activeTexture(gl.TEXTURE1)
+            gl.bindTexture(gl.TEXTURE_2D, depthTexture)
 
             gl.drawArrays(gl.TRIANGLES, 0, data.faces)
         })
