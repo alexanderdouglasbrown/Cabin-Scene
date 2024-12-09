@@ -199,6 +199,8 @@ const main = async () => {
     const uSkySphereViewLoc = gl.getUniformLocation(skySphereProgram, "u_view")
     const uSkySphereProjectionLoc = gl.getUniformLocation(skySphereProgram, "u_projection")
 
+    const uSkySphereVisibilityLoc = gl.getUniformLocation(skySphereProgram, "u_visibility")
+
     // Water shader
     const waterVertexShader = createShader(gl, gl.VERTEX_SHADER, await (await fetch(`shaders/WaterVertexShader.glsl`)).text())
     const waterFragmentShader = createShader(gl, gl.FRAGMENT_SHADER, await (await fetch(`shaders/WaterFragmentShader.glsl`)).text())
@@ -383,9 +385,22 @@ const main = async () => {
     gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT32F, reflectionTextureSize, reflectionTextureSize)
     gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, reflectionDepthBuffer)
 
-    const waterHeight = 0.698133
+    const starVisibility = lightAngle => {
+        if (lightAngle >= 5.0 && lightAngle < 175.0) {
+            return 0.0
+        } else if (lightAngle >= 175.0 && lightAngle < 185.0) {
+            return (lightAngle - 175.0) / 10.0
+        } else if (lightAngle >= 185.0 && lightAngle < 355.0) {
+            return 1.0
+        } else {
+            if (lightAngle >= 355.0)
+                return 1.0 - ((lightAngle - 355.0) / 10.0)
+            else
+                return 1.0 - (lightAngle / 10.0 + 0.5)
+        }
+    }
 
-    //////
+    const waterHeight = 0.698133
     const lightDistance = 25
     const sunScale = 20
     const sunDistance = 300
@@ -419,7 +434,6 @@ const main = async () => {
         let lightAngle = (-10 + (frameTime || 1) * 0.002) % 360
         if (lightAngle < 0)
             lightAngle += 360
-        console.log(lightAngle)
 
         let lightPosMatrix = m4_identity()
         lightPosMatrix = m4_multiply(lightPosMatrix, m4_z_rotation(degrees_to_radians(lightAngle)))
@@ -602,6 +616,9 @@ const main = async () => {
         let skySphereWorld = m4_identity()
         skySphereWorld = m4_multiply(skySphereWorld, m4_translation(cameraPosition[0], cameraPosition[1], cameraPosition[2]))
         skySphereWorld = m4_multiply(skySphereWorld, m4_scaling(skySphereScale, skySphereScale, skySphereScale))
+
+        gl.uniform1f(uSkySphereVisibilityLoc, starVisibility(lightAngle))
+
         gl.uniformMatrix4fv(uSkySphereWorldLoc, false, skySphereWorld)
 
         skySphereData.forEach(data => {
