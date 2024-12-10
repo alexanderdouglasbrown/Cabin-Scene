@@ -599,7 +599,7 @@ const main = async () => {
         // Clouds
         gl.disable(gl.CULL_FACE)
         let cloudWorld = m4_identity()
-        cloudWorld = m4_multiply(cloudWorld, m4_translation(0, -8, 0))
+        cloudWorld = m4_multiply(cloudWorld, m4_translation(0, -8.2, 0))
         cloudWorld = m4_multiply(cloudWorld, m4_y_rotation(landSpin * 4))
         cloudWorld = m4_multiply(cloudWorld, m4_scaling(20, 10, 20))
         gl.uniformMatrix4fv(uWorldLoc, false, cloudWorld)
