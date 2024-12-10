@@ -1,7 +1,7 @@
 const getSkyColor = lightAngle => {
     const dayR = 183
-    const dayG = 214
-    const dayB = 238
+    const dayG = 210
+    const dayB = 245
 
     const nightR = 22
     const nightG = 27

@@ -227,14 +227,13 @@ const main = async () => {
     setOverlay("Loading models")
     const sceneMesh = await objLoader('./models', 'scene')
 
-    const cloudsMesh = new Map([["Clouds", sceneMesh.get("Clouds")]])
     sceneMesh.delete("Clouds")
 
     const waterMesh = new Map([["Water", sceneMesh.get("Water")]])
     sceneMesh.delete("Water")
 
     const skySphereMesh = await objLoader('./models', 'skysphere')
-
+    const cloudsMesh = await objLoader('./models', 'clouds')
     const sunMesh = await objLoader('./models', 'sun')
 
     const loadingImagesSet = new Set()
@@ -431,7 +430,7 @@ const main = async () => {
         }
 
         // let lightAngle = 120
-        let lightAngle = (-10 + (frameTime || 1) * 0.002) % 360
+        let lightAngle = (320 + (frameTime || 1) * 0.002) % 360
         if (lightAngle < 0)
             lightAngle += 360
 
@@ -599,7 +598,11 @@ const main = async () => {
 
         // Clouds
         gl.disable(gl.CULL_FACE)
-        gl.uniformMatrix4fv(uWorldLoc, false, m4_y_rotation(landSpin * 2))
+        let cloudWorld = m4_identity()
+        cloudWorld = m4_multiply(cloudWorld, m4_translation(0, -8, 0))
+        cloudWorld = m4_multiply(cloudWorld, m4_y_rotation(landSpin * 4))
+        cloudWorld = m4_multiply(cloudWorld, m4_scaling(20, 10, 20))
+        gl.uniformMatrix4fv(uWorldLoc, false, cloudWorld)
         gl.bindVertexArray(cloudsMeshData.vao)
         gl.uniform3fv(uDiffuseLoc, cloudsMeshData.material.diffuse || [1.0, 1.0, 1.0])
         gl.uniform1f(uOpacityLoc, cloudsMeshData.material.opacity)
