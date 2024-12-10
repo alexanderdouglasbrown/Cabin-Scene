@@ -2,7 +2,7 @@ import { degrees_to_radians, m4_perspective, m4_look_at, m4_inverse, m4_y_rotati
 
 import objLoader from './src/objLoader'
 import { createShader, createProgram } from './src/shaderFunctions'
-import getSkyColor from './src/getSkyColor'
+import { getSkyColor, starVisibility } from './src/skyColor'
 
 const main = async () => {
     const setOverlay = msg => {
@@ -384,20 +384,6 @@ const main = async () => {
     gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT32F, reflectionTextureSize, reflectionTextureSize)
     gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, reflectionDepthBuffer)
 
-    const starVisibility = lightAngle => {
-        if (lightAngle >= 5.0 && lightAngle < 175.0) {
-            return 0.0
-        } else if (lightAngle >= 175.0 && lightAngle < 185.0) {
-            return (lightAngle - 175.0) / 10.0
-        } else if (lightAngle >= 185.0 && lightAngle < 355.0) {
-            return 1.0
-        } else {
-            if (lightAngle >= 355.0)
-                return 1.0 - ((lightAngle - 355.0) / 10.0)
-            else
-                return 1.0 - (lightAngle / 10.0 + 0.5)
-        }
-    }
 
     const waterHeight = 0.698133
     const lightDistance = 25
@@ -430,7 +416,7 @@ const main = async () => {
         }
 
         // let lightAngle = 120
-        let lightAngle = (320 + (frameTime || 1) * 0.002) % 360
+        let lightAngle = (160 + (frameTime || 1) * 0.002) % 360
         if (lightAngle < 0)
             lightAngle += 360
 

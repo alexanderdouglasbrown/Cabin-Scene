@@ -41,4 +41,19 @@ const getSkyColor = lightAngle => {
     return [rgbToZeroOne(r), rgbToZeroOne(g), rgbToZeroOne(b)]
 }
 
-export default getSkyColor
+const starVisibility = lightAngle => {
+    if (lightAngle >= 15.0 && lightAngle < 175.0) {
+        return 0.0
+    } else if (lightAngle >= 175.0 && lightAngle < 205.0) {
+        return (lightAngle - 175.0) / 30.0
+    } else if (lightAngle >= 205.0 && lightAngle < 345.0) {
+        return 1.0
+    } else {
+        if (lightAngle >= 345.0)
+            return 1.0 - ((lightAngle - 345.0) / 30.0)
+        else
+            return 1.0 - (lightAngle / 30.0 + 0.5)
+    }
+}
+
+export { getSkyColor, starVisibility }
