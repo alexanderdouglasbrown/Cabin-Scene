@@ -232,7 +232,7 @@ const main = async () => {
     const waterMesh = new Map([["Water", sceneMesh.get("Water")]])
     sceneMesh.delete("Water")
 
-    const skySphereMesh = await objLoader('./models', 'skysphere')
+    const starSphereMesh = await objLoader('./models', 'starsphere')
     const cloudsMesh = await objLoader('./models', 'clouds')
     const sunMesh = await objLoader('./models', 'sun')
 
@@ -352,7 +352,7 @@ const main = async () => {
     const cloudsMeshData = newMeshDataArray(cloudsMesh, aPositionLoc, aNormalLoc, aTextureCoordLoc)[0]
     const waterReflectionData = newMeshDataArray(waterMesh, aWaterPositionLoc, aWaterNormalLoc, aWaterTextureCoordLoc)[0]
     const sunMeshData = newMeshDataArray(sunMesh, aSunPositionLoc, null, aSunTextureCoordLoc)
-    const skySphereData = newMeshDataArray(skySphereMesh, aSkySpherePositionLoc, null, aSkySphereTextureCoordLoc)
+    const starSphereData = newMeshDataArray(starSphereMesh, aSkySpherePositionLoc, null, aSkySphereTextureCoordLoc)
     const sleepySunTexture = loadTexture('./models/sleepy-sun.png')
     const moonTexture = loadTexture('./models/moon.png')
 
@@ -467,9 +467,9 @@ const main = async () => {
             gl.drawArrays(gl.TRIANGLES, 0, data.faces)
         })
 
-        gl.uniformMatrix4fv(uWorldLoc, false, cloudWorld)
-        gl.bindVertexArray(cloudsMeshData.vao)
-        gl.drawArrays(gl.TRIANGLES, 0, cloudsMeshData.faces)
+        // gl.uniformMatrix4fv(uShadowWorldLoc, false, cloudWorld)
+        // gl.bindVertexArray(cloudsMeshData.vao)
+        // gl.drawArrays(gl.TRIANGLES, 0, cloudsMeshData.faces)
 
         // Water Reflection
         gl.useProgram(sceneProgram)
@@ -602,22 +602,22 @@ const main = async () => {
         gl.drawArrays(gl.TRIANGLES, 0, cloudsMeshData.faces)
         gl.enable(gl.CULL_FACE)
 
-        // Sky Sphere
+        // Star Sphere
         gl.useProgram(skySphereProgram)
 
         gl.uniformMatrix4fv(uSkySphereProjectionLoc, false, projection)
         gl.uniformMatrix4fv(uSkySphereViewLoc, false, view)
 
-        const skySphereScale = 1000.0
-        let skySphereWorld = m4_identity()
-        skySphereWorld = m4_multiply(skySphereWorld, m4_translation(cameraPosition[0], cameraPosition[1], cameraPosition[2]))
-        skySphereWorld = m4_multiply(skySphereWorld, m4_scaling(skySphereScale, skySphereScale, skySphereScale))
+        const starSphereScale = 1000.0
+        let starSphereWorld = m4_identity()
+        starSphereWorld = m4_multiply(starSphereWorld, m4_translation(cameraPosition[0], cameraPosition[1], cameraPosition[2]))
+        starSphereWorld = m4_multiply(starSphereWorld, m4_scaling(starSphereScale, starSphereScale, starSphereScale))
 
         gl.uniform1f(uSkySphereVisibilityLoc, starVisibility(lightAngle))
 
-        gl.uniformMatrix4fv(uSkySphereWorldLoc, false, skySphereWorld)
+        gl.uniformMatrix4fv(uSkySphereWorldLoc, false, starSphereWorld)
 
-        skySphereData.forEach(data => {
+        starSphereData.forEach(data => {
             gl.bindVertexArray(data.vao)
 
             gl.activeTexture(gl.TEXTURE0)
@@ -629,7 +629,7 @@ const main = async () => {
         gl.bindFramebuffer(gl.FRAMEBUFFER, reflectionFrameBuffer)
         gl.viewport(0, 0, reflectionTextureSize, reflectionTextureSize)
         gl.uniformMatrix4fv(uSkySphereViewLoc, false, reflectedView)
-        skySphereData.forEach(data => {
+        starSphereData.forEach(data => {
             gl.bindVertexArray(data.vao)
 
             gl.drawArrays(gl.TRIANGLES, 0, data.faces)

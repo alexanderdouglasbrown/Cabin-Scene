@@ -1,7 +1,7 @@
 # Blender 4.3.0
 # www.blender.org
-mtllib skysphere.mtl
-o SkySphere
+mtllib starsphere.mtl
+o StarSphere
 v 0.000000 0.980785 -0.195090
 v 0.000000 0.923880 -0.382683
 v 0.000000 0.707107 -0.707107
@@ -790,7 +790,7 @@ vt 11.042119 0.500000
 vt 11.042119 -4.771061
 vt 11.042119 8.406588
 s 0
-usemtl SkySphere
+usemtl StarSphere
 f 16/1/1 239/2/1 4/3/1
 f 24/4/2 8/5/2 9/6/2
 f 17/7/3 4/3/3 5/8/3

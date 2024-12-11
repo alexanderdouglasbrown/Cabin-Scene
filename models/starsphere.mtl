@@ -1,7 +1,7 @@
-# Blender 4.3.0 MTL File: 'skysphere.blend'
+# Blender 4.3.0 MTL File: 'starsphere.blend'
 # www.blender.org
 
-newmtl SkySphere
+newmtl StarSphere
 Ns 250.000000
 Ka 1.000000 1.000000 1.000000
 Ks 0.500000 0.500000 0.500000
