@@ -439,6 +439,11 @@ const main = async () => {
         const landSpin = (frameTime || 1) * -0.000025
         const landWorld = m4_y_rotation(landSpin)
 
+        let cloudWorld = m4_identity()
+        cloudWorld = m4_multiply(cloudWorld, m4_translation(0, -8.2, 0))
+        cloudWorld = m4_multiply(cloudWorld, m4_y_rotation(landSpin))
+        cloudWorld = m4_multiply(cloudWorld, m4_scaling(20, 10, 20))
+
         // Sky color
         const skyColor = getSkyColor(lightAngle)
         gl.clearColor(skyColor[0], skyColor[1], skyColor[2], 1.0)
@@ -461,6 +466,10 @@ const main = async () => {
 
             gl.drawArrays(gl.TRIANGLES, 0, data.faces)
         })
+
+        gl.uniformMatrix4fv(uWorldLoc, false, cloudWorld)
+        gl.bindVertexArray(cloudsMeshData.vao)
+        gl.drawArrays(gl.TRIANGLES, 0, cloudsMeshData.faces)
 
         // Water Reflection
         gl.useProgram(sceneProgram)
@@ -584,10 +593,6 @@ const main = async () => {
 
         // Clouds
         gl.disable(gl.CULL_FACE)
-        let cloudWorld = m4_identity()
-        cloudWorld = m4_multiply(cloudWorld, m4_translation(0, -8.2, 0))
-        cloudWorld = m4_multiply(cloudWorld, m4_y_rotation(landSpin * 4))
-        cloudWorld = m4_multiply(cloudWorld, m4_scaling(20, 10, 20))
         gl.uniformMatrix4fv(uWorldLoc, false, cloudWorld)
         gl.bindVertexArray(cloudsMeshData.vao)
         gl.uniform3fv(uDiffuseLoc, cloudsMeshData.material.diffuse || [1.0, 1.0, 1.0])
