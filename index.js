@@ -233,6 +233,7 @@ const main = async () => {
     sceneMesh.delete("Water")
 
     const starSphereMesh = await objLoader('./models', 'starsphere')
+    const cloudSphereMesh = await objLoader('./models', 'cloudsphere')
     const cloudsMesh = await objLoader('./models', 'clouds')
     const sunMesh = await objLoader('./models', 'sun')
 
@@ -353,6 +354,7 @@ const main = async () => {
     const waterReflectionData = newMeshDataArray(waterMesh, aWaterPositionLoc, aWaterNormalLoc, aWaterTextureCoordLoc)[0]
     const sunMeshData = newMeshDataArray(sunMesh, aSunPositionLoc, null, aSunTextureCoordLoc)
     const starSphereData = newMeshDataArray(starSphereMesh, aSkySpherePositionLoc, null, aSkySphereTextureCoordLoc)
+    const cloudSphereData = newMeshDataArray(cloudSphereMesh, aSkySpherePositionLoc, null, aSkySphereTextureCoordLoc)
     const sleepySunTexture = loadTexture('./models/sleepy-sun.png')
     const moonTexture = loadTexture('./models/moon.png')
 
@@ -630,6 +632,42 @@ const main = async () => {
         gl.viewport(0, 0, reflectionTextureSize, reflectionTextureSize)
         gl.uniformMatrix4fv(uSkySphereViewLoc, false, reflectedView)
         starSphereData.forEach(data => {
+            gl.bindVertexArray(data.vao)
+
+            gl.drawArrays(gl.TRIANGLES, 0, data.faces)
+        })
+
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null)
+        gl.viewport(0, 0, gl.canvas.width, gl.canvas.height)
+        gl.uniformMatrix4fv(uSkySphereViewLoc, false, view)
+
+        // Cloud Sphere      
+        const cloudSphereScale = 200.0
+        let cloudSphereWorld = m4_identity()
+        cloudSphereWorld = m4_multiply(cloudSphereWorld, m4_translation(cameraPosition[0], cameraPosition[1], cameraPosition[2]))
+        cloudSphereWorld = m4_multiply(cloudSphereWorld, m4_y_rotation(30))
+        cloudSphereWorld = m4_multiply(cloudSphereWorld, m4_scaling(cloudSphereScale, cloudSphereScale, cloudSphereScale))
+
+        gl.uniform1f(uSkySphereVisibilityLoc, 1.0 - starVisibility(lightAngle))
+
+        gl.uniformMatrix4fv(uSkySphereWorldLoc, false, cloudSphereWorld)
+
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null)
+        gl.viewport(0, 0, gl.canvas.width, gl.canvas.height)
+
+        cloudSphereData.forEach(data => {
+            gl.bindVertexArray(data.vao)
+
+            gl.activeTexture(gl.TEXTURE0)
+            gl.bindTexture(gl.TEXTURE_2D, data.texture)
+
+            gl.drawArrays(gl.TRIANGLES, 0, data.faces)
+        })
+
+        gl.bindFramebuffer(gl.FRAMEBUFFER, reflectionFrameBuffer)
+        gl.viewport(0, 0, reflectionTextureSize, reflectionTextureSize)
+        gl.uniformMatrix4fv(uSkySphereViewLoc, false, reflectedView)
+        cloudSphereData.forEach(data => {
             gl.bindVertexArray(data.vao)
 
             gl.drawArrays(gl.TRIANGLES, 0, data.faces)
