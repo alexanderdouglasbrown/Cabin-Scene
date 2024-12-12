@@ -491,19 +491,23 @@ const main = async () => {
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 
         gl.uniformMatrix4fv(uWorldLoc, false, landWorld)
-        sceneMeshData.forEach(data => {
-            gl.bindVertexArray(data.vao)
+        const drawScene = () => {
+            sceneMeshData.forEach(data => {
+                gl.bindVertexArray(data.vao)
+    
+                gl.uniform3fv(uDiffuseLoc, data.material.diffuse || [1.0, 1.0, 1.0])
+                gl.uniform1f(uOpacityLoc, data.material.opacity)
+    
+                gl.activeTexture(gl.TEXTURE0)
+                gl.bindTexture(gl.TEXTURE_2D, data.texture)
+                gl.activeTexture(gl.TEXTURE1)
+                gl.bindTexture(gl.TEXTURE_2D, depthTexture)
+    
+                gl.drawArrays(gl.TRIANGLES, 0, data.faces)
+            })
+        }
+        drawScene()
 
-            gl.uniform3fv(uDiffuseLoc, data.material.diffuse || [1.0, 1.0, 1.0])
-            gl.uniform1f(uOpacityLoc, data.material.opacity)
-
-            gl.activeTexture(gl.TEXTURE0)
-            gl.bindTexture(gl.TEXTURE_2D, data.texture)
-            gl.activeTexture(gl.TEXTURE1)
-            gl.bindTexture(gl.TEXTURE_2D, depthTexture)
-
-            gl.drawArrays(gl.TRIANGLES, 0, data.faces)
-        })
         gl.uniform1f(uIsReflection, 0.0)
 
         // Sun
@@ -580,20 +584,7 @@ const main = async () => {
 
         gl.uniformMatrix4fv(uTextureMatrixLoc, false, textureMatrix)
 
-        sceneMeshData.forEach(data => {
-            gl.bindVertexArray(data.vao)
-
-            gl.uniform3fv(uDiffuseLoc, data.material.diffuse || [1.0, 1.0, 1.0])
-
-            gl.uniform1f(uOpacityLoc, data.material.opacity)
-
-            gl.activeTexture(gl.TEXTURE0)
-            gl.bindTexture(gl.TEXTURE_2D, data.texture)
-            gl.activeTexture(gl.TEXTURE1)
-            gl.bindTexture(gl.TEXTURE_2D, depthTexture)
-
-            gl.drawArrays(gl.TRIANGLES, 0, data.faces)
-        })
+        drawScene()
 
         // Clouds
         gl.disable(gl.CULL_FACE)
