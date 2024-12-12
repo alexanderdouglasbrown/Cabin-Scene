@@ -303,3 +303,14 @@ pub fn m4_look_at(pos: Float64Array, target: Float64Array, up: Float64Array) -> 
     ];
     Float64Array::from(&arr[..])
 }
+
+#[wasm_bindgen]
+pub fn m4_reflection(height: f64) -> Float64Array {
+    let arr = [
+        1.0, 0.0, 0.0, 0.0,
+        0.0, -1.0, 0.0, 0.0,
+        0.0, 0.0, 1.0, 0.0,
+        0.0, 2.0 * height, 0.0, 1.0
+    ];
+    Float64Array::from(&arr[..])
+}

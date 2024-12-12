@@ -1,4 +1,4 @@
-import { degrees_to_radians, m4_perspective, m4_look_at, m4_inverse, m4_y_rotation, m4_z_rotation, m4_identity, m4_translation, m4_scaling, m4_multiply, m4_x_rotation, normalize } from './pkg'
+import { degrees_to_radians, m4_perspective, m4_look_at, m4_inverse, m4_y_rotation, m4_z_rotation, m4_identity, m4_translation, m4_scaling, m4_multiply, m4_x_rotation, normalize, m4_reflection } from './pkg'
 
 import objLoader from './src/objLoader'
 import { createShader, createProgram } from './src/shaderFunctions'
@@ -388,7 +388,6 @@ const main = async () => {
     gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT32F, reflectionTextureSize, reflectionTextureSize)
     gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, reflectionDepthBuffer)
 
-
     const waterHeight = 0.698133
     const lightDistance = 25
     const sunScale = 20
@@ -478,13 +477,12 @@ const main = async () => {
         // Water Reflection
         gl.useProgram(sceneProgram)
         gl.uniformMatrix4fv(uWorldLoc, false, landWorld)
-        let reflectedView = m4_look_at([cameraPosition[0], cameraPosition[1] * -1, cameraPosition[2]], cameraTarget, up)
-        reflectedView = m4_multiply(reflectedView, m4_translation(0, 2 * waterHeight, 0))
-        reflectedView = m4_inverse(reflectedView)
+        const reflectedView = m4_inverse(m4_multiply(m4_reflection(waterHeight), camera))
         gl.uniformMatrix4fv(uViewLoc, false, reflectedView)
         gl.uniformMatrix4fv(uProjectionLoc, false, projection)
 
         gl.uniform1f(uIsReflection, 1.0)
+        gl.cullFace(gl.FRONT)
 
         gl.bindFramebuffer(gl.FRAMEBUFFER, reflectionFrameBuffer)
         gl.viewport(0, 0, reflectionTextureSize, reflectionTextureSize)
@@ -494,20 +492,21 @@ const main = async () => {
         const drawScene = () => {
             sceneMeshData.forEach(data => {
                 gl.bindVertexArray(data.vao)
-    
+
                 gl.uniform3fv(uDiffuseLoc, data.material.diffuse || [1.0, 1.0, 1.0])
                 gl.uniform1f(uOpacityLoc, data.material.opacity)
-    
+
                 gl.activeTexture(gl.TEXTURE0)
                 gl.bindTexture(gl.TEXTURE_2D, data.texture)
                 gl.activeTexture(gl.TEXTURE1)
                 gl.bindTexture(gl.TEXTURE_2D, depthTexture)
-    
+
                 gl.drawArrays(gl.TRIANGLES, 0, data.faces)
             })
         }
         drawScene()
 
+        // gl.cullFace(gl.BACK)
         gl.uniform1f(uIsReflection, 0.0)
 
         // Sun
@@ -553,7 +552,9 @@ const main = async () => {
                 gl.drawArrays(gl.TRIANGLES, 0, data.faces)
             })
         }
+        
         drawSun()
+        gl.cullFace(gl.BACK)
 
         gl.uniformMatrix4fv(uSunViewLoc, false, view)
         gl.bindFramebuffer(gl.FRAMEBUFFER, null)
@@ -634,11 +635,12 @@ const main = async () => {
 
         drawNight()
 
+        gl.cullFace(gl.FRONT)
         gl.bindFramebuffer(gl.FRAMEBUFFER, reflectionFrameBuffer)
         gl.viewport(0, 0, reflectionTextureSize, reflectionTextureSize)
         gl.uniformMatrix4fv(uSkySphereViewLoc, false, reflectedView)
-
         drawNight()
+        gl.cullFace(gl.BACK)
 
         gl.bindFramebuffer(gl.FRAMEBUFFER, null)
         gl.viewport(0, 0, gl.canvas.width, gl.canvas.height)
@@ -666,11 +668,12 @@ const main = async () => {
         }
         drawClouds()
 
+        gl.cullFace(gl.FRONT)
         gl.bindFramebuffer(gl.FRAMEBUFFER, reflectionFrameBuffer)
         gl.viewport(0, 0, reflectionTextureSize, reflectionTextureSize)
         gl.uniformMatrix4fv(uSkySphereViewLoc, false, reflectedView)
-
         drawClouds()
+        gl.cullFace(gl.BACK)
 
         gl.bindFramebuffer(gl.FRAMEBUFFER, null)
         gl.viewport(0, 0, gl.canvas.width, gl.canvas.height)
