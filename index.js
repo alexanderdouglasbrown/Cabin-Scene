@@ -1,8 +1,8 @@
-import { degrees_to_radians, m4_perspective, m4_look_at, m4_inverse, m4_y_rotation, m4_z_rotation, m4_identity, m4_translation, m4_scaling, m4_multiply, m4_x_rotation, normalize } from './pkg'
+import { degrees_to_radians, m4_perspective, m4_look_at, m4_inverse, m4_y_rotation, m4_z_rotation, m4_identity, m4_translation, m4_scaling, m4_multiply, m4_x_rotation, normalize, m4_reflection } from './pkg'
 
 import objLoader from './src/objLoader'
 import { createShader, createProgram } from './src/shaderFunctions'
-import getSkyColor from './src/getSkyColor'
+import { getSkyColor, starVisibility } from './src/skyColor'
 
 const main = async () => {
     const setOverlay = msg => {
@@ -227,14 +227,15 @@ const main = async () => {
     setOverlay("Loading models")
     const sceneMesh = await objLoader('./models', 'scene')
 
-    const cloudsMesh = new Map([["Clouds", sceneMesh.get("Clouds")]])
     sceneMesh.delete("Clouds")
 
     const waterMesh = new Map([["Water", sceneMesh.get("Water")]])
     sceneMesh.delete("Water")
 
-    const skySphereMesh = await objLoader('./models', 'skysphere')
-
+    const starSphereMesh = await objLoader('./models', 'starsphere')
+    const nebulaMesh = await objLoader('./models', 'nebula')
+    const cloudSphereMesh = await objLoader('./models', 'cloudsphere')
+    const cloudsMesh = await objLoader('./models', 'clouds')
     const sunMesh = await objLoader('./models', 'sun')
 
     const loadingImagesSet = new Set()
@@ -353,7 +354,9 @@ const main = async () => {
     const cloudsMeshData = newMeshDataArray(cloudsMesh, aPositionLoc, aNormalLoc, aTextureCoordLoc)[0]
     const waterReflectionData = newMeshDataArray(waterMesh, aWaterPositionLoc, aWaterNormalLoc, aWaterTextureCoordLoc)[0]
     const sunMeshData = newMeshDataArray(sunMesh, aSunPositionLoc, null, aSunTextureCoordLoc)
-    const skySphereData = newMeshDataArray(skySphereMesh, aSkySpherePositionLoc, null, aSkySphereTextureCoordLoc)
+    const starSphereData = newMeshDataArray(starSphereMesh, aSkySpherePositionLoc, null, aSkySphereTextureCoordLoc)
+    const nebulaSphereData = newMeshDataArray(nebulaMesh, aSkySpherePositionLoc, null, aSkySphereTextureCoordLoc)
+    const cloudSphereData = newMeshDataArray(cloudSphereMesh, aSkySpherePositionLoc, null, aSkySphereTextureCoordLoc)
     const sleepySunTexture = loadTexture('./models/sleepy-sun.png')
     const moonTexture = loadTexture('./models/moon.png')
 
@@ -385,21 +388,6 @@ const main = async () => {
     gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT32F, reflectionTextureSize, reflectionTextureSize)
     gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, reflectionDepthBuffer)
 
-    const starVisibility = lightAngle => {
-        if (lightAngle >= 5.0 && lightAngle < 175.0) {
-            return 0.0
-        } else if (lightAngle >= 175.0 && lightAngle < 185.0) {
-            return (lightAngle - 175.0) / 10.0
-        } else if (lightAngle >= 185.0 && lightAngle < 355.0) {
-            return 1.0
-        } else {
-            if (lightAngle >= 355.0)
-                return 1.0 - ((lightAngle - 355.0) / 10.0)
-            else
-                return 1.0 - (lightAngle / 10.0 + 0.5)
-        }
-    }
-
     const waterHeight = 0.698133
     const lightDistance = 25
     const sunScale = 20
@@ -430,8 +418,8 @@ const main = async () => {
             isInitialSetSize = false
         }
 
-        // let lightAngle = 120
-        let lightAngle = (-10 + (frameTime || 1) * 0.002) % 360
+        // let lightAngle = 260
+        let lightAngle = (160 + (frameTime || 1) * 0.002) % 360
         if (lightAngle < 0)
             lightAngle += 360
 
@@ -453,6 +441,11 @@ const main = async () => {
 
         const landSpin = (frameTime || 1) * -0.000025
         const landWorld = m4_y_rotation(landSpin)
+
+        let cloudWorld = m4_identity()
+        cloudWorld = m4_multiply(cloudWorld, m4_translation(0, -8.2, 0))
+        cloudWorld = m4_multiply(cloudWorld, m4_y_rotation(landSpin))
+        cloudWorld = m4_multiply(cloudWorld, m4_scaling(20, 10, 20))
 
         // Sky color
         const skyColor = getSkyColor(lightAngle)
@@ -477,35 +470,43 @@ const main = async () => {
             gl.drawArrays(gl.TRIANGLES, 0, data.faces)
         })
 
+        // gl.uniformMatrix4fv(uShadowWorldLoc, false, cloudWorld)
+        // gl.bindVertexArray(cloudsMeshData.vao)
+        // gl.drawArrays(gl.TRIANGLES, 0, cloudsMeshData.faces)
+
         // Water Reflection
         gl.useProgram(sceneProgram)
         gl.uniformMatrix4fv(uWorldLoc, false, landWorld)
-        let reflectedView = m4_look_at([cameraPosition[0], cameraPosition[1] * -1, cameraPosition[2]], cameraTarget, up)
-        reflectedView = m4_multiply(reflectedView, m4_translation(0, 2 * waterHeight, 0))
-        reflectedView = m4_inverse(reflectedView)
+        const reflectedView = m4_inverse(m4_multiply(m4_reflection(waterHeight), camera))
         gl.uniformMatrix4fv(uViewLoc, false, reflectedView)
         gl.uniformMatrix4fv(uProjectionLoc, false, projection)
 
         gl.uniform1f(uIsReflection, 1.0)
+        gl.cullFace(gl.FRONT)
 
         gl.bindFramebuffer(gl.FRAMEBUFFER, reflectionFrameBuffer)
         gl.viewport(0, 0, reflectionTextureSize, reflectionTextureSize)
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 
         gl.uniformMatrix4fv(uWorldLoc, false, landWorld)
-        sceneMeshData.forEach(data => {
-            gl.bindVertexArray(data.vao)
+        const drawScene = () => {
+            sceneMeshData.forEach(data => {
+                gl.bindVertexArray(data.vao)
 
-            gl.uniform3fv(uDiffuseLoc, data.material.diffuse || [1.0, 1.0, 1.0])
-            gl.uniform1f(uOpacityLoc, data.material.opacity)
+                gl.uniform3fv(uDiffuseLoc, data.material.diffuse || [1.0, 1.0, 1.0])
+                gl.uniform1f(uOpacityLoc, data.material.opacity)
 
-            gl.activeTexture(gl.TEXTURE0)
-            gl.bindTexture(gl.TEXTURE_2D, data.texture)
-            gl.activeTexture(gl.TEXTURE1)
-            gl.bindTexture(gl.TEXTURE_2D, depthTexture)
+                gl.activeTexture(gl.TEXTURE0)
+                gl.bindTexture(gl.TEXTURE_2D, data.texture)
+                gl.activeTexture(gl.TEXTURE1)
+                gl.bindTexture(gl.TEXTURE_2D, depthTexture)
 
-            gl.drawArrays(gl.TRIANGLES, 0, data.faces)
-        })
+                gl.drawArrays(gl.TRIANGLES, 0, data.faces)
+            })
+        }
+        drawScene()
+
+        // gl.cullFace(gl.BACK)
         gl.uniform1f(uIsReflection, 0.0)
 
         // Sun
@@ -551,7 +552,9 @@ const main = async () => {
                 gl.drawArrays(gl.TRIANGLES, 0, data.faces)
             })
         }
+        
         drawSun()
+        gl.cullFace(gl.BACK)
 
         gl.uniformMatrix4fv(uSunViewLoc, false, view)
         gl.bindFramebuffer(gl.FRAMEBUFFER, null)
@@ -582,24 +585,11 @@ const main = async () => {
 
         gl.uniformMatrix4fv(uTextureMatrixLoc, false, textureMatrix)
 
-        sceneMeshData.forEach(data => {
-            gl.bindVertexArray(data.vao)
-
-            gl.uniform3fv(uDiffuseLoc, data.material.diffuse || [1.0, 1.0, 1.0])
-
-            gl.uniform1f(uOpacityLoc, data.material.opacity)
-
-            gl.activeTexture(gl.TEXTURE0)
-            gl.bindTexture(gl.TEXTURE_2D, data.texture)
-            gl.activeTexture(gl.TEXTURE1)
-            gl.bindTexture(gl.TEXTURE_2D, depthTexture)
-
-            gl.drawArrays(gl.TRIANGLES, 0, data.faces)
-        })
+        drawScene()
 
         // Clouds
         gl.disable(gl.CULL_FACE)
-        gl.uniformMatrix4fv(uWorldLoc, false, m4_y_rotation(landSpin * 2))
+        gl.uniformMatrix4fv(uWorldLoc, false, cloudWorld)
         gl.bindVertexArray(cloudsMeshData.vao)
         gl.uniform3fv(uDiffuseLoc, cloudsMeshData.material.diffuse || [1.0, 1.0, 1.0])
         gl.uniform1f(uOpacityLoc, cloudsMeshData.material.opacity)
@@ -608,38 +598,83 @@ const main = async () => {
         gl.drawArrays(gl.TRIANGLES, 0, cloudsMeshData.faces)
         gl.enable(gl.CULL_FACE)
 
-        // Sky Sphere
+        // Night Spheres
         gl.useProgram(skySphereProgram)
 
         gl.uniformMatrix4fv(uSkySphereProjectionLoc, false, projection)
         gl.uniformMatrix4fv(uSkySphereViewLoc, false, view)
 
-        const skySphereScale = 1000.0
-        let skySphereWorld = m4_identity()
-        skySphereWorld = m4_multiply(skySphereWorld, m4_translation(cameraPosition[0], cameraPosition[1], cameraPosition[2]))
-        skySphereWorld = m4_multiply(skySphereWorld, m4_scaling(skySphereScale, skySphereScale, skySphereScale))
+        const starSphereScale = 1000.0
+        let starSphereWorld = m4_identity()
+        starSphereWorld = m4_multiply(starSphereWorld, m4_translation(cameraPosition[0], cameraPosition[1], cameraPosition[2]))
+        starSphereWorld = m4_multiply(starSphereWorld, m4_scaling(starSphereScale, starSphereScale, starSphereScale))
 
-        gl.uniform1f(uSkySphereVisibilityLoc, starVisibility(lightAngle))
+        const nebulaSphereScale = 900.0
+        let nebulaSphereWorld = m4_identity()
+        nebulaSphereWorld = m4_multiply(nebulaSphereWorld, m4_translation(cameraPosition[0], cameraPosition[1], cameraPosition[2]))
+        nebulaSphereWorld = m4_multiply(nebulaSphereWorld, m4_scaling(nebulaSphereScale, nebulaSphereScale, nebulaSphereScale))
 
-        gl.uniformMatrix4fv(uSkySphereWorldLoc, false, skySphereWorld)
+        const nightVisibility = starVisibility(lightAngle)
+        const nebulaVisibilityMult = 0.5
 
-        skySphereData.forEach(data => {
-            gl.bindVertexArray(data.vao)
-
+        const drawNight = () => {
+            gl.uniform1f(uSkySphereVisibilityLoc, nightVisibility)
+            gl.uniformMatrix4fv(uSkySphereWorldLoc, false, starSphereWorld)
+            gl.bindVertexArray(starSphereData[0].vao)
             gl.activeTexture(gl.TEXTURE0)
-            gl.bindTexture(gl.TEXTURE_2D, data.texture)
+            gl.bindTexture(gl.TEXTURE_2D, starSphereData[0].texture)
+            gl.drawArrays(gl.TRIANGLES, 0, starSphereData[0].faces)
 
-            gl.drawArrays(gl.TRIANGLES, 0, data.faces)
-        })
+            gl.uniform1f(uSkySphereVisibilityLoc, nightVisibility * nebulaVisibilityMult)
+            gl.uniformMatrix4fv(uSkySphereWorldLoc, false, nebulaSphereWorld)
+            gl.bindVertexArray(nebulaSphereData[0].vao)
+            gl.activeTexture(gl.TEXTURE0)
+            gl.bindTexture(gl.TEXTURE_2D, nebulaSphereData[0].texture)
+            gl.drawArrays(gl.TRIANGLES, 0, nebulaSphereData[0].faces)
+        }
 
+        drawNight()
+
+        gl.cullFace(gl.FRONT)
         gl.bindFramebuffer(gl.FRAMEBUFFER, reflectionFrameBuffer)
         gl.viewport(0, 0, reflectionTextureSize, reflectionTextureSize)
         gl.uniformMatrix4fv(uSkySphereViewLoc, false, reflectedView)
-        skySphereData.forEach(data => {
-            gl.bindVertexArray(data.vao)
+        drawNight()
+        gl.cullFace(gl.BACK)
 
-            gl.drawArrays(gl.TRIANGLES, 0, data.faces)
-        })
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null)
+        gl.viewport(0, 0, gl.canvas.width, gl.canvas.height)
+        gl.uniformMatrix4fv(uSkySphereViewLoc, false, view)
+
+        // Cloud Sphere      
+        const cloudSphereScale = 200.0
+        let cloudSphereWorld = m4_identity()
+        cloudSphereWorld = m4_multiply(cloudSphereWorld, m4_translation(cameraPosition[0], cameraPosition[1], cameraPosition[2]))
+        cloudSphereWorld = m4_multiply(cloudSphereWorld, m4_y_rotation(landSpin))
+        cloudSphereWorld = m4_multiply(cloudSphereWorld, m4_scaling(cloudSphereScale, cloudSphereScale, cloudSphereScale))
+
+        gl.uniform1f(uSkySphereVisibilityLoc, 1.0 - nightVisibility)
+
+        gl.uniformMatrix4fv(uSkySphereWorldLoc, false, cloudSphereWorld)
+
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null)
+        gl.viewport(0, 0, gl.canvas.width, gl.canvas.height)
+
+        const drawClouds = () => {
+            gl.bindVertexArray(cloudSphereData[0].vao)
+            gl.activeTexture(gl.TEXTURE0)
+            gl.bindTexture(gl.TEXTURE_2D, cloudSphereData[0].texture)
+            gl.drawArrays(gl.TRIANGLES, 0, cloudSphereData[0].faces)
+        }
+        drawClouds()
+
+        gl.cullFace(gl.FRONT)
+        gl.bindFramebuffer(gl.FRAMEBUFFER, reflectionFrameBuffer)
+        gl.viewport(0, 0, reflectionTextureSize, reflectionTextureSize)
+        gl.uniformMatrix4fv(uSkySphereViewLoc, false, reflectedView)
+        drawClouds()
+        gl.cullFace(gl.BACK)
+
         gl.bindFramebuffer(gl.FRAMEBUFFER, null)
         gl.viewport(0, 0, gl.canvas.width, gl.canvas.height)
 
