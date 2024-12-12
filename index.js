@@ -233,6 +233,7 @@ const main = async () => {
     sceneMesh.delete("Water")
 
     const starSphereMesh = await objLoader('./models', 'starsphere')
+    const nebulaMesh = await objLoader('./models', 'nebula')
     const cloudSphereMesh = await objLoader('./models', 'cloudsphere')
     const cloudsMesh = await objLoader('./models', 'clouds')
     const sunMesh = await objLoader('./models', 'sun')
@@ -354,6 +355,7 @@ const main = async () => {
     const waterReflectionData = newMeshDataArray(waterMesh, aWaterPositionLoc, aWaterNormalLoc, aWaterTextureCoordLoc)[0]
     const sunMeshData = newMeshDataArray(sunMesh, aSunPositionLoc, null, aSunTextureCoordLoc)
     const starSphereData = newMeshDataArray(starSphereMesh, aSkySpherePositionLoc, null, aSkySphereTextureCoordLoc)
+    const nebulaSphereData = newMeshDataArray(nebulaMesh, aSkySpherePositionLoc, null, aSkySphereTextureCoordLoc)
     const cloudSphereData = newMeshDataArray(cloudSphereMesh, aSkySpherePositionLoc, null, aSkySphereTextureCoordLoc)
     const sleepySunTexture = loadTexture('./models/sleepy-sun.png')
     const moonTexture = loadTexture('./models/moon.png')
@@ -417,7 +419,7 @@ const main = async () => {
             isInitialSetSize = false
         }
 
-        // let lightAngle = 120
+        // let lightAngle = 260
         let lightAngle = (160 + (frameTime || 1) * 0.002) % 360
         if (lightAngle < 0)
             lightAngle += 360
@@ -604,7 +606,7 @@ const main = async () => {
         gl.drawArrays(gl.TRIANGLES, 0, cloudsMeshData.faces)
         gl.enable(gl.CULL_FACE)
 
-        // Star Sphere
+        // Night Spheres
         gl.useProgram(skySphereProgram)
 
         gl.uniformMatrix4fv(uSkySphereProjectionLoc, false, projection)
@@ -615,27 +617,37 @@ const main = async () => {
         starSphereWorld = m4_multiply(starSphereWorld, m4_translation(cameraPosition[0], cameraPosition[1], cameraPosition[2]))
         starSphereWorld = m4_multiply(starSphereWorld, m4_scaling(starSphereScale, starSphereScale, starSphereScale))
 
-        gl.uniform1f(uSkySphereVisibilityLoc, starVisibility(lightAngle))
+        const nebulaSphereScale = 900.0
+        let nebulaSphereWorld = m4_identity()
+        nebulaSphereWorld = m4_multiply(nebulaSphereWorld, m4_translation(cameraPosition[0], cameraPosition[1], cameraPosition[2]))
+        nebulaSphereWorld = m4_multiply(nebulaSphereWorld, m4_scaling(nebulaSphereScale, nebulaSphereScale, nebulaSphereScale))
 
-        gl.uniformMatrix4fv(uSkySphereWorldLoc, false, starSphereWorld)
+        const nightVisibility = starVisibility(lightAngle)
+        const nebulaVisibilityMult = 0.5
 
-        starSphereData.forEach(data => {
-            gl.bindVertexArray(data.vao)
-
+        const drawNight = () => {
+            gl.uniform1f(uSkySphereVisibilityLoc, nightVisibility)
+            gl.uniformMatrix4fv(uSkySphereWorldLoc, false, starSphereWorld)
+            gl.bindVertexArray(starSphereData[0].vao)
             gl.activeTexture(gl.TEXTURE0)
-            gl.bindTexture(gl.TEXTURE_2D, data.texture)
+            gl.bindTexture(gl.TEXTURE_2D, starSphereData[0].texture)
+            gl.drawArrays(gl.TRIANGLES, 0, starSphereData[0].faces)
 
-            gl.drawArrays(gl.TRIANGLES, 0, data.faces)
-        })
+            gl.uniform1f(uSkySphereVisibilityLoc, nightVisibility * nebulaVisibilityMult)
+            gl.uniformMatrix4fv(uSkySphereWorldLoc, false, nebulaSphereWorld)
+            gl.bindVertexArray(nebulaSphereData[0].vao)
+            gl.activeTexture(gl.TEXTURE0)
+            gl.bindTexture(gl.TEXTURE_2D, nebulaSphereData[0].texture)
+            gl.drawArrays(gl.TRIANGLES, 0, nebulaSphereData[0].faces)
+        }
+
+        drawNight()
 
         gl.bindFramebuffer(gl.FRAMEBUFFER, reflectionFrameBuffer)
         gl.viewport(0, 0, reflectionTextureSize, reflectionTextureSize)
         gl.uniformMatrix4fv(uSkySphereViewLoc, false, reflectedView)
-        starSphereData.forEach(data => {
-            gl.bindVertexArray(data.vao)
 
-            gl.drawArrays(gl.TRIANGLES, 0, data.faces)
-        })
+        drawNight()
 
         gl.bindFramebuffer(gl.FRAMEBUFFER, null)
         gl.viewport(0, 0, gl.canvas.width, gl.canvas.height)
@@ -645,33 +657,30 @@ const main = async () => {
         const cloudSphereScale = 200.0
         let cloudSphereWorld = m4_identity()
         cloudSphereWorld = m4_multiply(cloudSphereWorld, m4_translation(cameraPosition[0], cameraPosition[1], cameraPosition[2]))
-        cloudSphereWorld = m4_multiply(cloudSphereWorld, m4_y_rotation(30))
+        cloudSphereWorld = m4_multiply(cloudSphereWorld, m4_y_rotation(landSpin))
         cloudSphereWorld = m4_multiply(cloudSphereWorld, m4_scaling(cloudSphereScale, cloudSphereScale, cloudSphereScale))
 
-        gl.uniform1f(uSkySphereVisibilityLoc, 1.0 - starVisibility(lightAngle))
+        gl.uniform1f(uSkySphereVisibilityLoc, 1.0 - nightVisibility)
 
         gl.uniformMatrix4fv(uSkySphereWorldLoc, false, cloudSphereWorld)
 
         gl.bindFramebuffer(gl.FRAMEBUFFER, null)
         gl.viewport(0, 0, gl.canvas.width, gl.canvas.height)
 
-        cloudSphereData.forEach(data => {
-            gl.bindVertexArray(data.vao)
-
+        const drawClouds = () => {
+            gl.bindVertexArray(cloudSphereData[0].vao)
             gl.activeTexture(gl.TEXTURE0)
-            gl.bindTexture(gl.TEXTURE_2D, data.texture)
-
-            gl.drawArrays(gl.TRIANGLES, 0, data.faces)
-        })
+            gl.bindTexture(gl.TEXTURE_2D, cloudSphereData[0].texture)
+            gl.drawArrays(gl.TRIANGLES, 0, cloudSphereData[0].faces)
+        }
+        drawClouds()
 
         gl.bindFramebuffer(gl.FRAMEBUFFER, reflectionFrameBuffer)
         gl.viewport(0, 0, reflectionTextureSize, reflectionTextureSize)
         gl.uniformMatrix4fv(uSkySphereViewLoc, false, reflectedView)
-        cloudSphereData.forEach(data => {
-            gl.bindVertexArray(data.vao)
 
-            gl.drawArrays(gl.TRIANGLES, 0, data.faces)
-        })
+        drawClouds()
+
         gl.bindFramebuffer(gl.FRAMEBUFFER, null)
         gl.viewport(0, 0, gl.canvas.width, gl.canvas.height)
 
