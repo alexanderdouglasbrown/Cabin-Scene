@@ -8,4 +8,4 @@ https://webgl2fundamentals.org/
 
 https://www.youtube.com/@osakaandrew
 
-https://rustwasm.github.io/wasm-bindgen/examples/hello-world.html
+https://wasm-bindgen.github.io/wasm-bindgen/examples/hello-world.html
